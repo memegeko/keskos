@@ -1,0 +1,90 @@
+* {
+    font: "JetBrainsMono Nerd Font 12";
+    background: #000000;
+    background-alt: #050505;
+    foreground: #ce6a35;
+    foreground-muted: #8b5a3c;
+    border: #ce6a35;
+    selected: #1a0d07;
+    selected-border: #ff9461;
+    urgent: #3c1308;
+    input-text: #f3c4a8;
+}
+
+window {
+    width: 520px;
+    location: center;
+    anchor: center;
+    fullscreen: false;
+    transparency: "real";
+    background-color: @background;
+    border: 2px;
+    border-color: @border;
+    border-radius: 0px;
+    padding: 18px;
+}
+
+mainbox {
+    spacing: 12px;
+    children: [ "inputbar", "listview" ];
+    background-color: transparent;
+}
+
+inputbar {
+    background-color: @background-alt;
+    border: 1px;
+    border-color: @border;
+    border-radius: 0px;
+    padding: 10px 12px;
+    spacing: 10px;
+    children: [ "prompt", "entry" ];
+}
+
+prompt {
+    text-color: @foreground;
+    background-color: transparent;
+}
+
+entry {
+    text-color: @input-text;
+    placeholder: "command layer";
+    placeholder-color: @foreground-muted;
+    background-color: transparent;
+}
+
+listview {
+    lines: 9;
+    columns: 1;
+    dynamic: false;
+    fixed-height: true;
+    border: 1px;
+    border-color: rgba(206, 106, 53, 35%);
+    background-color: transparent;
+    spacing: 4px;
+    padding: 6px;
+    scrollbar: false;
+}
+
+element {
+    padding: 8px 10px;
+    border: 1px;
+    border-color: transparent;
+    background-color: transparent;
+    text-color: @foreground;
+}
+
+element selected {
+    background-color: @selected;
+    border-color: @selected-border;
+    text-color: #ffd7c1;
+}
+
+element urgent {
+    background-color: @urgent;
+    text-color: #ffb28c;
+}
+
+element-text {
+    background-color: transparent;
+    text-color: inherit;
+}
