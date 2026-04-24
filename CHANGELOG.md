@@ -1,17 +1,17 @@
 # Changelog
 
-All notable changes to `keskos` are documented in this file.
-
 ## 2026-04-24
 
-### Changed
+This update is the big cleanup pass that moves `keskos` away from the older Conky/X11-ish setup and into a Wayland-first Plasma setup.
 
-- replaced the Conky HUD with an Eww-based HUD built for KDE Plasma Wayland
-- updated the installer to build upstream `eww` from source with `--no-default-features --features=wayland`
-- switched the HUD startup flow to `keskos-start-eww` and `keskos-select-resolution`
-- updated the wallpaper pipeline to stay KDE/Wayland-focused and prefer resolution-matched wallpaper assets
-- refreshed the wallpaper layout so the right-middle panel is labeled `SYSTEM PROFILE`
-- rewrote the README for the Eww/Wayland workflow, resolution handling, recovery steps, and autostart behavior
+### What changed
+
+- replaced the old Conky HUD with an Eww HUD
+- removed the bundled picom config and old Conky helpers
+- updated the installer to build upstream `eww` with Wayland support
+- switched autostart over to the new Eww startup flow
+- updated the wallpaper assets so the right-middle panel now reads `SYSTEM PROFILE`
+- rewrote the README so it matches the project as it actually exists now
 
 ### Added
 
@@ -26,16 +26,17 @@ All notable changes to `keskos` are documented in this file.
 - `scripts/setup-eww.sh`
 - `scripts/start-eww.sh`
 - `scripts/select-resolution.sh`
-- regenerated wallpaper PNG assets for `1920x1080`, `2560x1440`, and `4096x2160`
 
 ### Removed
 
-- removed all bundled Conky configs and install scripts
-- removed the old picom config from the repo
-- removed the old resolution-profile helper used by the Conky HUD
+- `configs/conky/`
+- `configs/picom/picom.conf`
+- `scripts/setup-conky.sh`
+- `scripts/setup-scanlines.sh`
+- `scripts/select-resolution-profile.sh`
 
-### Notes
+### Kept on purpose
 
-- the launcher stays on `Meta+K`
-- Plasma panels are still hidden via auto-hide only; they are never deleted
-- the HUD is opened as a non-focusable layer-shell surface so it behaves like desktop chrome instead of a normal app window
+- the launcher still opens on `Meta+K`
+- Plasma panels are still hidden with auto-hide instead of being deleted
+- the overall look stays black, orange, and minimal

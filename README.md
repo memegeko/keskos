@@ -1,32 +1,69 @@
 # keskos
 
-`keskos` is an Arch Linux KDE Plasma rice that turns the desktop into a Wayland-friendly retro terminal HUD. The desktop stays recoverable and usable, but the visible layer becomes a black and orange machine interface with a centered `rofi` launcher, a HUD wallpaper, and a live Eww overlay that matches the wallpaper boxes.
+`keskos` is a small KDE Plasma rice for Arch Linux. The idea is simple: keep Plasma usable, but make the desktop feel like a quiet orange machine console instead of a modern dashboard.
 
-The target feel is:
+The current version is built around:
+
+- KDE Plasma on Wayland
+- a compact `rofi` launcher on `Meta+K`
+- an Eww HUD that sits inside the wallpaper frame
+- a custom orange-on-black KDE color scheme
+- a setup that stays reversible and does not delete panels
+
+If you want a desktop that feels like "future tech imagined in the 90s" without turning your system into a full custom distro, that is what this repo is for.
+
+## What It Looks Like
+
+The look is intentionally restrained:
 
 - black background
-- orange accent `#ce6a35`
-- subtle CRT scanlines and grain baked into the wallpaper
-- small centered launcher
-- no colorful dashboard
-- no gaming stack
-- no Conky
-- Wayland-compatible HUD windows using Eww
+- `#ce6a35` as the main accent
+- subtle scanlines and grain baked into the wallpaper
+- small centered launcher instead of a full-screen app menu
+- live side panels for system info, memory, logs, and network status
 
-## Supported System
+The middle of the screen stays mostly clean so it still feels like a desktop, not a wall of widgets.
 
-`keskos` targets:
+## Supported Setup
+
+`keskos` is meant for:
 
 - Arch Linux
-- KDE Plasma on Wayland
-- user-local installation
-- VM-first testing
+- KDE Plasma
+- Wayland
 
-It is a desktop customization only. It does not build a custom OS.
+It is safest to test in a VM first.
 
-## What It Installs
+This project does not replace your OS. It only installs user-level desktop customization and a few dependencies.
 
-Runtime packages:
+## Install
+
+```bash
+git clone https://github.com/memegeko/keskos.git
+cd keskos
+chmod +x install.sh
+./install.sh
+```
+
+The installer will:
+
+- verify that you are on Arch and that `pacman` exists
+- refuse to run as root
+- install the required runtime and build packages
+- build `eww` locally with Wayland support
+- copy the launcher, wallpaper, HUD config, and color scheme into your home directory
+- try to switch existing Plasma panels to auto-hide
+- restart `plasmashell` safely
+
+When it finishes, you should see:
+
+```text
+KESKOS EWW HUD installed. Log out and back in.
+```
+
+## What Gets Installed
+
+Runtime tools:
 
 - `rofi`
 - `konsole`
@@ -38,7 +75,7 @@ Runtime packages:
 - `iproute2`
 - `ttf-jetbrains-mono-nerd`
 
-Build and Eww runtime packages:
+Build and Eww runtime dependencies:
 
 - `git`
 - `cargo`
@@ -52,89 +89,37 @@ Build and Eww runtime packages:
 - `glib2`
 - `gcc-libs`
 
-The installer builds `eww` from the official upstream source with Wayland enabled:
+`eww` is built from upstream with:
 
 ```bash
 cargo build --release --no-default-features --features=wayland
 ```
 
-By default the build uses official tag `v0.6.0`. You can override that for testing with:
+By default the installer uses upstream tag `v0.6.0`. If you want to test another tag:
 
 ```bash
 KESKOS_EWW_REF=<tag> ./install.sh
 ```
 
-## Repo Layout
-
-Important project files:
-
-- `install.sh`
-- `CHANGELOG.md`
-- `scripts/setup-eww.sh`
-- `scripts/start-eww.sh`
-- `scripts/select-resolution.sh`
-- `configs/eww/eww.yuck`
-- `configs/eww/eww.scss`
-- `configs/eww/widgets/`
-- `assets/wallpaper.svg`
-
-## Install
-
-```bash
-git clone https://github.com/memegeko/keskos.git
-cd keskos
-chmod +x install.sh
-./install.sh
-```
-
-The installer:
-
-- checks that `pacman` exists
-- fails clearly when not on Arch
-- refuses to run as root
-- uses `sudo` only for `pacman`
-- installs runtime and Eww build dependencies
-- copies the Eww config into `~/.config/eww/`
-- copies helper scripts into `~/.local/bin/`
-- removes old Conky startup files from earlier `keskos` installs
-- applies the wallpaper
-- applies the KDE color scheme
-- attempts to set Plasma panels to auto-hide
-- safely restarts `plasmashell`
-
-When it finishes, it prints:
-
-```text
-KESKOS EWW HUD installed. Log out and back in.
-```
-
-## Changelog
-
-Recent project history lives in:
-
-- `CHANGELOG.md`
-
-The current update replaces the old Conky HUD with an Eww-based Wayland HUD and removes the earlier picom-based overlay path.
-
 ## Launcher
 
-The launcher stays as the same compact centered `rofi` prompt:
+The launcher is a compact `rofi` prompt with the prompt text:
 
 ```text
 KESK >
 ```
 
-You can test it directly with:
+Default shortcut:
+
+- `Meta+K`
+
+You can test it directly:
 
 ```bash
 ~/.local/bin/keskos-launcher
 ```
 
-The intended shortcut is:
-
-- `Meta+K`
-
-If automatic binding fails:
+If the automatic shortcut binding does not stick:
 
 1. Open `System Settings`
 2. Go to `Keyboard`
@@ -142,44 +127,53 @@ If automatic binding fails:
 4. Search for `KESKOS Launcher`
 5. Bind it to `Meta+K`
 
-## Eww HUD
+## HUD
 
-`keskos` now uses Eww instead of Conky.
+The live HUD is handled by Eww, not Conky.
 
-The live widgets are placed to match the wallpaper frame:
+The wallpaper provides the frame, and Eww fills the frame with live text in these areas:
 
-- left top: `SYSTEM STATUS`
-- left middle: `CORE MODULES`
-- left bottom: `NETWORK`
-- right top: `SYSTEM LOG`
-- right middle: `SYSTEM PROFILE`
-- right bottom: `MEMORY`
+- top left: `SYSTEM STATUS`
+- middle left: `CORE MODULES`
+- bottom left: `NETWORK`
+- top right: `SYSTEM LOG`
+- middle right: `SYSTEM PROFILE`
+- bottom right: `MEMORY`
 
-The center remains clean so the wallpaper title can stay untouched.
+The center stays empty on purpose so the wallpaper title remains readable.
 
-### How It Works
+Main HUD pieces:
 
-- `~/.local/bin/keskos-start-eww` starts the Eww daemon and opens the HUD
-- `~/.local/bin/keskos-select-resolution` detects the screen width and applies the closest layout profile
-- `~/.local/bin/keskos-eww-data` provides JSON data for Eww polling variables
-- `~/.config/autostart/keskos-eww.desktop` starts the HUD on login
+- `scripts/setup-eww.sh`
+- `scripts/start-eww.sh`
+- `scripts/select-resolution.sh`
+- `configs/eww/eww.yuck`
+- `configs/eww/eww.scss`
+- `configs/eww/widgets/`
 
-### Restart The HUD
+## How The HUD Starts
+
+On login:
+
+- `~/.config/autostart/keskos-eww.desktop` runs `~/.local/bin/keskos-start-eww`
+- that script starts the Eww daemon
+- it reruns the resolution selector
+- then it opens the main HUD window
+
+To restart the HUD manually:
 
 ```bash
 ~/.local/bin/keskos-start-eww
 ```
 
-If you want to fully stop it:
+To stop it:
 
 ```bash
 eww --config ~/.config/eww close-all
 eww --config ~/.config/eww kill
 ```
 
-If the local binary was built into `~/.local/bin/eww`, that path takes precedence automatically.
-
-### Disable Eww Autostart
+To disable autostart:
 
 ```bash
 rm -f ~/.config/autostart/keskos-eww.desktop
@@ -187,19 +181,15 @@ rm -f ~/.config/autostart/keskos-eww.desktop
 
 ## Resolution Handling
 
-`scripts/select-resolution.sh` chooses one of three layout profiles:
+The layout is not hardcoded to one screen size.
 
-- width `>= 3840` -> `4K`
-- width `>= 2560` -> `1440p`
+`scripts/select-resolution.sh` chooses a profile based on screen width:
+
+- `>= 3840` -> `4K`
+- `>= 2560` -> `1440p`
 - otherwise -> `1080p`
 
-The selector updates:
-
-- panel sizes
-- panel heights
-- margins
-- row spacing
-- profile class used by `eww.scss`
+It adjusts panel width, spacing, offsets, and font sizing through Eww variables.
 
 You can rerun it manually:
 
@@ -210,19 +200,19 @@ cat ~/.config/eww/keskos-layout.env
 
 ## Wallpaper
 
-The main editable wallpaper source is:
+Main editable source:
 
 - `assets/wallpaper.svg`
 
-The repo also ships raster variants:
+Generated raster variants:
 
 - `assets/wallpaper-1920x1080.png`
 - `assets/wallpaper-2560x1440.png`
 - `assets/wallpaper-4096x2160.png`
 
-The wallpaper helper prefers the closest PNG and falls back to the SVG. On KDE it tries `plasma-apply-wallpaperimage` first, then Plasma scripting, and keeps a black Plasma wallpaper fallback if those wallpaper helpers are unavailable.
+The wallpaper helper prefers the closest PNG for the current screen and falls back to the SVG if needed.
 
-To apply the wallpaper manually:
+To apply it manually:
 
 ```bash
 ~/.local/bin/keskos-wallpaper-apply
@@ -230,7 +220,7 @@ To apply the wallpaper manually:
 
 ## KDE Theme And Panels
 
-The custom color scheme lives in:
+The color scheme is stored in:
 
 - `configs/kde/keskos.colors`
 
@@ -238,47 +228,47 @@ It is installed to:
 
 - `~/.local/share/color-schemes/KESKOS.colors`
 
-`keskos` never deletes Plasma panels. It only attempts to switch them to auto-hide.
+`keskos` does not delete your Plasma panels. It only tries to switch them to auto-hide.
 
-If panel auto-hide does not apply automatically:
+If auto-hide does not get applied automatically:
 
 1. Right click the panel
 2. Choose `Enter Edit Mode`
 3. Open `More Options`
 4. Set `Visibility` to `Auto Hide`
 
-## Manual Wallpaper Or HUD Recovery
+## Recovery
 
-Reset wallpaper manually:
-
-1. Open `System Settings`
-2. Go to `Wallpaper`
-3. Choose another wallpaper or solid color
-
-Stop the HUD:
+If you want to stop using the HUD for a while:
 
 ```bash
 eww --config ~/.config/eww close-all
 eww --config ~/.config/eww kill
-```
-
-Remove Eww autostart:
-
-```bash
 rm -f ~/.config/autostart/keskos-eww.desktop
 ```
 
-## Known Limitations
+If you want to change the wallpaper back manually:
 
-- Plasma Wayland layer-shell behavior can differ slightly between Plasma releases
-- The HUD is designed to stay non-focusable and desktop-like, so it is opened on the bottom layer to avoid blocking interaction
-- `journalctl` output may vary by system; when access fails, `keskos` falls back to harmless machine-style status lines
-- Multi-monitor setups may need a manual rerun of `~/.local/bin/keskos-select-resolution`
-- Desktop icons are not force-disabled automatically for safety reasons
+1. Open `System Settings`
+2. Go to `Wallpaper`
+3. Pick another wallpaper or solid color
 
-## VM Notes
+## Notes
 
-- Test in an Arch KDE VM first
-- Snapshot before install when possible
-- Wayland is the intended test path for this revision of `keskos`
-- If the HUD looks offset after changing resolution, rerun `~/.local/bin/keskos-select-resolution` and restart Eww
+- Plasma Wayland layer-shell behavior can vary a little between Plasma versions
+- the HUD is opened as a non-focusable desktop-like layer so it does not act like a normal app window
+- `journalctl` output can differ across systems, so the log panel falls back to harmless status lines when needed
+- multi-monitor setups may need a manual rerun of `~/.local/bin/keskos-select-resolution`
+- desktop icons are not force-disabled automatically for safety
+
+## VM First
+
+Testing in a VM first is still the right move.
+
+- snapshot before install if you can
+- use an Arch KDE Wayland VM
+- if the HUD looks offset after a resolution change, rerun `~/.local/bin/keskos-select-resolution` and restart Eww
+
+## Changelog
+
+Recent project history is in [CHANGELOG.md](CHANGELOG.md).
