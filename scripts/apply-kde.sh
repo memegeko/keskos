@@ -89,8 +89,24 @@ apply_fonts() {
 }
 
 set_black_root() {
-  if [[ "${XDG_SESSION_TYPE:-}" == "x11" ]] && command -v xsetroot >/dev/null 2>&1; then
-    xsetroot -solid '#000000' || true
+  local script
+
+  script='var allDesktops = desktops();
+for (var i = 0; i < allDesktops.length; i++) {
+  var desktop = allDesktops[i];
+  desktop.wallpaperPlugin = "org.kde.image";
+  desktop.currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+  desktop.writeConfig("Color", "#000000");
+  desktop.writeConfig("FillMode", 2);
+}'
+
+  if command -v qdbus6 >/dev/null 2>&1; then
+    qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 || true
+    return
+  fi
+
+  if command -v qdbus >/dev/null 2>&1; then
+    qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 || true
   fi
 }
 

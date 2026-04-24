@@ -43,7 +43,18 @@ set -euo pipefail
 detect_screen_width() {
   local width=""
 
-  if command -v xrandr >/dev/null 2>&1; then
+  if command -v kscreen-doctor >/dev/null 2>&1; then
+    width="$(
+      kscreen-doctor -o 2>/dev/null | awk '
+        /enabled/ && match($0, /([0-9]+)x([0-9]+)/, found) {
+          print found[1];
+          exit;
+        }
+      ' || true
+    )"
+  fi
+
+  if [[ -z "$width" ]] && command -v xrandr >/dev/null 2>&1; then
     width="$(
       xrandr --current 2>/dev/null | awk '
         / connected primary / {
@@ -65,17 +76,6 @@ detect_screen_width() {
           }
         }
         match($0, /current[[:space:]]+([0-9]+)/, found) {
-          print found[1];
-          exit;
-        }
-      ' || true
-    )"
-  fi
-
-  if [[ -z "$width" ]] && command -v kscreen-doctor >/dev/null 2>&1; then
-    width="$(
-      kscreen-doctor -o 2>/dev/null | awk '
-        /enabled/ && match($0, /([0-9]+)x([0-9]+)/, found) {
           print found[1];
           exit;
         }
@@ -124,8 +124,24 @@ select_wallpaper() {
 }
 
 set_black_fallback() {
-  if [[ "${XDG_SESSION_TYPE:-}" == "x11" ]] && command -v xsetroot >/dev/null 2>&1; then
-    xsetroot -solid '#000000' || true
+  local script
+
+  script='var allDesktops = desktops();
+for (var i = 0; i < allDesktops.length; i++) {
+  var desktop = allDesktops[i];
+  desktop.wallpaperPlugin = "org.kde.image";
+  desktop.currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+  desktop.writeConfig("Color", "#000000");
+  desktop.writeConfig("FillMode", 2);
+}'
+
+  if command -v qdbus6 >/dev/null 2>&1; then
+    qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 || true
+    return
+  fi
+
+  if command -v qdbus >/dev/null 2>&1; then
+    qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 || true
   fi
 }
 
@@ -180,11 +196,8 @@ main() {
     exit 0
   fi
 
-  if [[ "${XDG_SESSION_TYPE:-}" == "x11" ]] && command -v feh >/dev/null 2>&1; then
-    feh --bg-fill "$wallpaper" && exit 0
-  fi
-
   set_black_fallback
+  printf 'keskos-wallpaper-apply: Plasma wallpaper tools were unavailable, keeping the black fallback\n' >&2
   exit 0
 }
 

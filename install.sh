@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EWW_REF="${KESKOS_EWW_REF:-v0.6.0}"
 
 log() {
   printf '[keskos] %s\n' "$1"
@@ -33,17 +34,24 @@ require_arch() {
 install_packages() {
   local packages=(
     rofi
-    picom
-    feh
     konsole
     dolphin
     fastfetch
-    conky
+    jq
     lm_sensors
-    iproute2
     procps-ng
-    xorg-xrandr
-    xorg-xsetroot
+    iproute2
+    git
+    cargo
+    base-devel
+    gtk3
+    gtk-layer-shell
+    pango
+    gdk-pixbuf2
+    libdbusmenu-gtk3
+    cairo
+    glib2
+    gcc-libs
     ttf-jetbrains-mono-nerd
   )
 
@@ -51,16 +59,15 @@ install_packages() {
     fail "sudo is required to install packages."
   fi
 
-  log "Installing required packages with pacman..."
+  log "Installing runtime and build packages with pacman..."
   sudo pacman -S --needed "${packages[@]}"
 }
 
 prepare_directories() {
   log "Creating user-local directories..."
   mkdir -p \
+    "$HOME/.config/eww/widgets" \
     "$HOME/.config/rofi" \
-    "$HOME/.config/picom" \
-    "$HOME/.config/conky/profiles" \
     "$HOME/.config/autostart" \
     "$HOME/.local/bin" \
     "$HOME/.local/share/applications" \
@@ -90,9 +97,9 @@ restart_plasma() {
 }
 
 start_hud() {
-  if [[ -x "$HOME/.local/bin/keskos-start-conky" ]]; then
-    log "Starting the KESKOS HUD..."
-    nohup "$HOME/.local/bin/keskos-start-conky" >/dev/null 2>&1 &
+  if [[ -x "$HOME/.local/bin/keskos-start-eww" ]]; then
+    log "Starting the KESKOS Eww HUD..."
+    nohup "$HOME/.local/bin/keskos-start-eww" >/dev/null 2>&1 &
   fi
 }
 
@@ -111,11 +118,8 @@ main() {
   log "Installing wallpaper assets..."
   bash "$SCRIPT_DIR/scripts/setup-wallpaper.sh" "$SCRIPT_DIR"
 
-  log "Installing picom configuration..."
-  bash "$SCRIPT_DIR/scripts/setup-scanlines.sh" "$SCRIPT_DIR"
-
-  log "Installing Conky HUD..."
-  bash "$SCRIPT_DIR/scripts/setup-conky.sh" "$SCRIPT_DIR"
+  log "Installing Eww Wayland HUD from source (${EWW_REF})..."
+  bash "$SCRIPT_DIR/scripts/setup-eww.sh" "$SCRIPT_DIR"
 
   log "Installing autostart entries..."
   bash "$SCRIPT_DIR/scripts/setup-autostart.sh" "$SCRIPT_DIR"
@@ -129,7 +133,7 @@ main() {
   restart_plasma
   start_hud
 
-  printf '\nKESKOS HUD installed. Log out and back in, then press Meta+K.\n'
+  printf '\nKESKOS EWW HUD installed. Log out and back in.\n'
 }
 
 main "$@"

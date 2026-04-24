@@ -1,0 +1,14 @@
+(defwidget system_profile_widget []
+  (box :class "hud-panel panel-body system-profile ${resolution_profile}"
+       :orientation "vertical"
+       :spacing hud_line_spacing
+       :width hud_panel_width
+       :height hud_middle_right_height
+    (panel_header :title "SYSTEM PROFILE")
+    (kv_line :key "HOST" :value { jq(system_profile_json, ".host", "r") ?: "kesk-node" })
+    (kv_line :key "USER" :value { jq(system_profile_json, ".user", "r") ?: "user" })
+    (kv_line :key "MACHINE" :value { jq(system_profile_json, ".machine", "r") ?: "x86_64" })
+    (kv_line :key "SESSION" :value { jq(system_profile_json, ".session", "r") ?: "KDE Plasma / wayland" })
+    (kv_line :key "UPTIME" :value { jq(system_profile_json, ".uptime", "r") ?: "n/a" })
+    (kv_line :key "NODE" :value { jq(system_profile_json, ".node", "r") ?: "KESK-01" })
+    (kv_line :key "ACCESS" :value { jq(system_profile_json, ".access", "r") ?: "GRANTED" })))

@@ -1,0 +1,12 @@
+(defwidget system_log_widget []
+  (box :class "hud-panel panel-body system-log ${resolution_profile}"
+       :orientation "vertical"
+       :spacing hud_line_spacing
+       :width hud_panel_width
+       :height hud_top_right_height
+    (panel_header :title "SYSTEM LOG")
+    (box :class "panel-body"
+         :orientation "vertical"
+         :spacing hud_line_spacing
+      (for line in system_log_json
+        (label :class "log-line" :xalign 0 :truncate true :text line)))))
