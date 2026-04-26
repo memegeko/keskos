@@ -1,5 +1,9 @@
 # keskos
 
+<p align="center">
+  <img src="kesk_os_logo_text.png" alt="KeskOS logo" width="420">
+</p>
+
 `keskos` is a small Arch Linux KDE Plasma rice with a black/orange retro terminal feel.
 
 The desktop stays recognizably Plasma, but the surface is pushed toward a quieter machine-console look:
@@ -23,6 +27,30 @@ If you want the wallpaper, launcher, and theme only, you can install `keskos` in
 - Wayland
 
 Testing in a VM first is still the safest path.
+
+## Screenshots
+
+<p align="center">
+  <img src="READMEpictures/kesklaucherstartpage.png" alt="KeskOS launcher home" width="45%">
+  <img src="READMEpictures/keskssearch.png" alt="KeskOS launcher app search" width="45%">
+</p>
+
+<p align="center">
+  <img src="READMEpictures/keskmath.png" alt="KeskOS launcher calculator result" width="45%">
+  <img src="READMEpictures/keskgoogle.png" alt="KeskOS launcher web shortcut search" width="45%">
+</p>
+
+<p align="center">
+  <img src="READMEpictures/keskbrowserstartpage.png" alt="KeskOS LibreWolf homepage" width="90%">
+</p>
+
+<p align="center">
+  <img src="READMEpictures/lockscreen.png" alt="KeskOS login screen" width="70%">
+</p>
+
+<p align="center">
+  <img src="READMEpictures/installscriptstartpage.png" alt="KeskOS installer start page" width="70%">
+</p>
 
 ## Install
 
