@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_SOURCE_DIR/lib-ui.sh" ]]; then
+  # shellcheck source=scripts/lib-ui.sh
+  . "$SCRIPT_SOURCE_DIR/lib-ui.sh"
+fi
+
 REPO_DIR="${1:-}"
 WIDGETS_ENABLED="${2:-n}"
 
 log() {
-  printf '[setup-autostart] %s\n' "$1"
+  if declare -F ui_log >/dev/null 2>&1; then
+    ui_log "setup-autostart" "$1"
+  else
+    printf '[setup-autostart] %s\n' "$1"
+  fi
 }
 
 mkdir -p "$HOME/.config/autostart" "$HOME/.local/bin"

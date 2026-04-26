@@ -24,9 +24,9 @@ def search(context: SearchContext, query: str, power_only: bool = False) -> list
         bonus = 0
         if normalized_query:
             if normalized_query == normalize_text(row["title"]) or normalized_query in {normalize_text(alias) for alias in row["aliases"]}:
-                bonus = 2200
+                bonus = 3200
             elif normalize_text(row["title"]).startswith(normalized_query) or any(normalize_text(alias).startswith(normalized_query) for alias in row["aliases"]):
-                bonus = 1000
+                bonus = 1500
         recent_key = f"power:{row['id']}"
         results.append(
             Result(

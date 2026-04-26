@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_SOURCE_DIR/lib-ui.sh" ]]; then
+  # shellcheck source=scripts/lib-ui.sh
+  . "$SCRIPT_SOURCE_DIR/lib-ui.sh"
+fi
+
 REPO_DIR="${1:?usage: setup-rofi.sh /path/to/repo}"
 
 log() {
-  printf '[setup-rofi] %s\n' "$1"
+  if declare -F ui_log >/dev/null 2>&1; then
+    ui_log "setup-rofi" "$1"
+  else
+    printf '[setup-rofi] %s\n' "$1"
+  fi
 }
 
 install_backend() {
@@ -28,7 +38,8 @@ install_wrappers() {
 set -euo pipefail
 
 THEME="${HOME}/.config/rofi/keskos.rasi"
-CONFIG="${HOME}/.config/rofi/keskos-launcher-config.rasi"
+MAIN_CONFIG="${HOME}/.config/rofi/keskos-launcher-config.rasi"
+STATIC_CONFIG="${HOME}/.config/rofi/keskos-launcher-static-config.rasi"
 LAUNCHER_ROOT="${HOME}/.local/share/keskos/launcher"
 SCRIPT_BIN="${HOME}/.local/bin/keskos-launcher-script"
 MODE="main"
@@ -63,6 +74,11 @@ case "$MODE" in
     MODE="main"
     ;;
 esac
+
+CONFIG="$MAIN_CONFIG"
+if [[ "$MODE" == "power" ]]; then
+  CONFIG="$STATIC_CONFIG"
+fi
 
 (
   python3 -m kesk_runner warm --sync-files >/dev/null 2>&1
@@ -106,6 +122,10 @@ main() {
   install -m 644 \
     "$REPO_DIR/configs/rofi/keskos-launcher-config.rasi" \
     "$HOME/.config/rofi/keskos-launcher-config.rasi"
+
+  install -m 644 \
+    "$REPO_DIR/configs/rofi/keskos-launcher-static-config.rasi" \
+    "$HOME/.config/rofi/keskos-launcher-static-config.rasi"
 
   install_backend
   install_wrappers

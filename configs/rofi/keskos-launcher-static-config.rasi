@@ -1,0 +1,4 @@
+configuration {
+    kb-clear-line: "Control+l";
+    kb-mode-complete: "";
+}

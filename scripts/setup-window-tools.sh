@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_SOURCE_DIR/lib-ui.sh" ]]; then
+  # shellcheck source=scripts/lib-ui.sh
+  . "$SCRIPT_SOURCE_DIR/lib-ui.sh"
+fi
+
 REPO_DIR="${1:-}"
 INSTALL_ROOT="${INSTALL_ROOT:-${ROOT_MOUNT:-${MOUNTPOINT:-/}}}"
 
 log() {
-  printf '[setup-window-tools] %s\n' "$1"
+  if declare -F ui_log >/dev/null 2>&1; then
+    ui_log "setup-window-tools" "$1"
+  else
+    printf '[setup-window-tools] %s\n' "$1"
+  fi
 }
 
 warn() {
-  printf '[setup-window-tools] warning: %s\n' "$1" >&2
+  if declare -F ui_warn >/dev/null 2>&1; then
+    ui_warn "setup-window-tools" "$1"
+  else
+    printf '[setup-window-tools] warning: %s\n' "$1" >&2
+  fi
 }
 
 run_as_root() {

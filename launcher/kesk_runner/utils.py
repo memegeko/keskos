@@ -162,16 +162,26 @@ def choose_terminal() -> list[str]:
     return ["xterm"]
 
 
+def konsole_profile_args() -> list[str]:
+    profile_path = Path.home() / ".local/share/konsole" / "KeskOS.profile"
+    if profile_path.is_file():
+        return ["--profile", "KeskOS"]
+    return []
+
+
 def launch_in_terminal(command: str | None = None) -> None:
     terminal = choose_terminal()
     binary = Path(terminal[0]).name
 
     if command is None:
-      subprocess.Popen(terminal, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-      return
+        argv = terminal
+        if binary == "konsole":
+            argv = terminal + konsole_profile_args()
+        subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        return
 
     if binary == "konsole":
-        argv = terminal + ["-e", "bash", "-lc", command]
+        argv = terminal + konsole_profile_args() + ["-e", "bash", "-lc", command]
     elif binary in {"kitty", "foot", "xterm"}:
         argv = terminal + ["bash", "-lc", command]
     elif binary == "alacritty":
@@ -228,6 +238,70 @@ def kde_logout_command() -> list[list[str]]:
                 ["qdbus", "org.kde.ksmserver", "/KSMServer", "logout", "0", "0", "0"],
             ]
         )
+    return commands
+
+
+def kde_restart_commands() -> list[list[str]]:
+    commands: list[list[str]] = []
+    if shutil.which("qdbus6"):
+        commands.extend(
+            [
+                ["qdbus6", "org.kde.Shutdown", "/Shutdown", "org.kde.Shutdown.logoutAndReboot"],
+                ["qdbus6", "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager.Reboot", "true"],
+                ["loginctl", "reboot"],
+                ["systemctl", "reboot"],
+            ]
+        )
+    if shutil.which("qdbus"):
+        commands.extend(
+            [
+                ["qdbus", "org.kde.Shutdown", "/Shutdown", "org.kde.Shutdown.logoutAndReboot"],
+            ]
+        )
+    if shutil.which("loginctl"):
+        commands.append(["loginctl", "reboot"])
+    if shutil.which("systemctl"):
+        commands.append(["systemctl", "reboot"])
+    return commands
+
+
+def kde_poweroff_commands() -> list[list[str]]:
+    commands: list[list[str]] = []
+    if shutil.which("qdbus6"):
+        commands.extend(
+            [
+                ["qdbus6", "org.kde.Shutdown", "/Shutdown", "org.kde.Shutdown.logoutAndShutdown"],
+                ["qdbus6", "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager.PowerOff", "true"],
+            ]
+        )
+    if shutil.which("qdbus"):
+        commands.extend(
+            [
+                ["qdbus", "org.kde.Shutdown", "/Shutdown", "org.kde.Shutdown.logoutAndShutdown"],
+            ]
+        )
+    if shutil.which("loginctl"):
+        commands.append(["loginctl", "poweroff"])
+    if shutil.which("systemctl"):
+        commands.append(["systemctl", "poweroff"])
+    return commands
+
+
+def suspend_commands() -> list[list[str]]:
+    commands: list[list[str]] = []
+    if shutil.which("loginctl"):
+        commands.append(["loginctl", "suspend"])
+    if shutil.which("systemctl"):
+        commands.append(["systemctl", "suspend"])
+    return commands
+
+
+def hibernate_commands() -> list[list[str]]:
+    commands: list[list[str]] = []
+    if shutil.which("loginctl"):
+        commands.append(["loginctl", "hibernate"])
+    if shutil.which("systemctl"):
+        commands.append(["systemctl", "hibernate"])
     return commands
 
 

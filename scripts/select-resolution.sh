@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_SOURCE_DIR/lib-ui.sh" ]]; then
+  # shellcheck source=scripts/lib-ui.sh
+  . "$SCRIPT_SOURCE_DIR/lib-ui.sh"
+fi
+
 CONFIG_DIR="${HOME}/.config/quickshell"
 ENV_FILE="${CONFIG_DIR}/keskos-resolution.env"
 
 log() {
-  printf '[select-resolution] %s\n' "$1"
+  if declare -F ui_log >/dev/null 2>&1; then
+    ui_log "select-resolution" "$1"
+  else
+    printf '[select-resolution] %s\n' "$1"
+  fi
 }
 
 detect_resolution() {

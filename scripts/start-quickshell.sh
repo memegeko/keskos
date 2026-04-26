@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_SOURCE_DIR/lib-ui.sh" ]]; then
+  # shellcheck source=scripts/lib-ui.sh
+  . "$SCRIPT_SOURCE_DIR/lib-ui.sh"
+fi
+
 CONFIG_DIR="${HOME}/.config/quickshell"
 ENTRYPOINT="${CONFIG_DIR}/main.qml"
 SELECT_RESOLUTION="${HOME}/.local/bin/keskos-select-resolution"
@@ -9,7 +15,11 @@ LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/keskos"
 LOG_FILE="${LOG_DIR}/quickshell.log"
 
 log() {
-  printf '[start-quickshell] %s\n' "$1"
+  if declare -F ui_log >/dev/null 2>&1; then
+    ui_log "start-quickshell" "$1"
+  else
+    printf '[start-quickshell] %s\n' "$1"
+  fi
 }
 
 resolve_quickshell_bin() {

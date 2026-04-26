@@ -1,0 +1,17 @@
+{
+  "KPackageStructure": "Plasma/LookAndFeel",
+  "KPlugin": {
+    "Id": "com.keskos.desktop",
+    "Name": "KeskOS",
+    "Description": "KeskOS retro-futuristic lock screen for Plasma",
+    "Category": "Plasma Look And Feel",
+    "License": "GPL-3.0-or-later",
+    "Authors": [
+      {
+        "Name": "memegeko"
+      }
+    ],
+    "Version": "1.0"
+  },
+  "X-Plasma-APIVersion": "2"
+}

@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_SOURCE_DIR/lib-ui.sh" ]]; then
+  # shellcheck source=scripts/lib-ui.sh
+  . "$SCRIPT_SOURCE_DIR/lib-ui.sh"
+fi
+
 REPO_DIR="${1:?usage: setup-librewolf.sh /path/to/repo}"
 CURRENT_USER="$(id -un)"
 TARGET_USER="${TARGET_USER:-$CURRENT_USER}"
@@ -11,11 +17,19 @@ TARGET_GID=""
 HOMEPAGE_URL="file:///usr/share/kesk/browser-home/index.html"
 
 log() {
-  printf '[setup-librewolf] %s\n' "$1"
+  if declare -F ui_log >/dev/null 2>&1; then
+    ui_log "setup-librewolf" "$1"
+  else
+    printf '[setup-librewolf] %s\n' "$1"
+  fi
 }
 
 warn() {
-  printf '[setup-librewolf] warning: %s\n' "$1" >&2
+  if declare -F ui_warn >/dev/null 2>&1; then
+    ui_warn "setup-librewolf" "$1"
+  else
+    printf '[setup-librewolf] warning: %s\n' "$1" >&2
+  fi
 }
 
 backup_file() {

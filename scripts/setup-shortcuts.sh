@@ -1,18 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_SOURCE_DIR/lib-ui.sh" ]]; then
+  # shellcheck source=scripts/lib-ui.sh
+  . "$SCRIPT_SOURCE_DIR/lib-ui.sh"
+fi
+
 REPO_DIR="${1:?usage: setup-shortcuts.sh /path/to/repo}"
 
 log() {
-  printf '[setup-shortcuts] %s\n' "$1"
+  if declare -F ui_log >/dev/null 2>&1; then
+    ui_log "setup-shortcuts" "$1"
+  else
+    printf '[setup-shortcuts] %s\n' "$1"
+  fi
 }
 
 warn() {
-  printf '[setup-shortcuts] warning: %s\n' "$1" >&2
+  if declare -F ui_warn >/dev/null 2>&1; then
+    ui_warn "setup-shortcuts" "$1"
+  else
+    printf '[setup-shortcuts] warning: %s\n' "$1" >&2
+  fi
 }
 
 fail() {
-  printf '[setup-shortcuts] error: %s\n' "$1" >&2
+  if declare -F ui_error >/dev/null 2>&1; then
+    ui_error "setup-shortcuts" "$1"
+  else
+    printf '[setup-shortcuts] error: %s\n' "$1" >&2
+  fi
   exit 1
 }
 

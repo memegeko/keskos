@@ -38,6 +38,34 @@ During install you will be asked:
 ```text
 Install KeskOS HUD widgets? (y/n)
 Do you want to install the Kesk OS themed LibreWolf browser? [y/N]
+Apply optional system branding so apps report Kesk OS? [y/N]
+Apply the optional KeskOS SDDM login and lock theme? [y/N]
+Proceed with KeskOS installation? [Y/n]
+```
+
+The installer now runs in a more guided terminal flow with:
+
+- a `keskos` startup banner
+- grouped sections for preflight, feature selection, install steps, and completion
+- numbered progress steps during the actual install
+- a short selection summary before anything is applied
+
+If you want simpler output:
+
+```bash
+KESKOS_UI_STYLE=plain ./install.sh
+```
+
+If you want no ANSI colors:
+
+```bash
+NO_COLOR=1 ./install.sh
+```
+
+If `./install.sh` reports `Permission denied`, use:
+
+```bash
+bash ./install.sh
 ```
 
 If you choose:
@@ -46,6 +74,8 @@ If you choose:
 - `n` -> `keskos` skips all widget setup and leaves you with a clean minimal desktop
 - `y` at the LibreWolf prompt -> `keskos` installs LibreWolf when possible, adds the offline Kesk homepage, and themes the browser chrome
 - `n` or pressing `Enter` at the LibreWolf prompt -> `keskos` skips all LibreWolf changes and keeps going
+- `y` at the branding prompt -> `keskos` updates the user-facing distro branding so apps can report `Kesk OS`
+- `y` at the login screen prompt -> `keskos` installs the matching SDDM theme, Plasma lock screen, and KDE splash screen
 
 At the end it prints:
 
@@ -170,6 +200,110 @@ If shortcut binding does not apply automatically:
 3. Open `Shortcuts`
 4. Search for `KESKOS`
 5. Rebind the matching `KESKOS` entry to the shortcut you want
+
+## Terminal
+
+`keskos` now installs a dedicated Konsole profile and color scheme so the terminal matches the rest of the desktop instead of falling back to the stock Breeze look.
+
+What changes:
+
+- Konsole gets a `KeskOS` profile
+- the default terminal palette becomes black with the same orange accent used across the rice
+- opening a fresh terminal automatically runs a custom `fastfetch` preset with the `Kesk OS` logo and matching orange palette
+- launcher-opened terminal windows also use the same `KeskOS` profile
+
+Installed files:
+
+- `~/.local/share/konsole/KeskOS.colorscheme`
+- `~/.local/share/konsole/KeskOS.profile`
+- `~/.local/bin/keskos-terminal-shell`
+- `~/.config/fastfetch/config.jsonc`
+- `~/.config/fastfetch/logo.txt`
+
+To rerun just the terminal setup:
+
+```bash
+bash scripts/setup-terminal.sh "$PWD"
+```
+
+## System Branding
+
+`keskos` can also apply an optional system branding layer so apps that read `/etc/os-release` report `Kesk OS` instead of the stock distro display name.
+
+Important:
+
+- this is opt-in during install
+- it keeps the Arch base identifiers in place for compatibility
+- it writes backups before replacing the user-facing branding files
+
+Files affected when enabled:
+
+- `/etc/os-release`
+- `/etc/lsb-release`
+
+To apply it later by hand:
+
+```bash
+bash scripts/setup-branding.sh
+```
+
+## Login Screen
+
+`keskos` can also install an optional SDDM login screen theme that matches the retro orange-on-black style of the desktop.
+
+What it does:
+
+- uses the `keskos` wallpaper as the background
+- centers a retro framed login window inspired by old workstation and CRT login prompts
+- uses the bundled `kesk_os_logo_text.png` inside the login panel
+- sets SDDM to use the `keskos` theme through `/etc/sddm.conf.d/keskos.conf`
+
+Theme files:
+
+- `configs/sddm/keskos/Main.qml`
+- `configs/sddm/keskos/metadata.desktop`
+- `configs/sddm/keskos/theme.conf`
+- `scripts/setup-sddm.sh`
+
+To apply it later by hand:
+
+```bash
+bash scripts/setup-sddm.sh "$PWD"
+```
+
+The previously active SDDM theme, when detected, is stored in:
+
+- `~/.cache/keskos/sddm-previous-theme`
+
+## Lock Screen
+
+If you enable the optional login screen theme, `keskos` now also installs a matching Plasma lock screen for the current user.
+
+What it does:
+
+- installs a small local Plasma Look-and-Feel package at `~/.local/share/plasma/look-and-feel/com.keskos.desktop`
+- uses the same retro background and `keskos` logo as the login screen
+- replaces the stock lock prompt with a centered orange framed unlock window
+- points the user's Plasma session at the `com.keskos.desktop` lock screen package
+- sets the KDE splash/loading screen to a centered `keskos` logo with the bundled spinner directly beneath it
+
+Theme files:
+
+- `configs/look-and-feel/com.keskos.desktop/metadata.json`
+- `configs/look-and-feel/com.keskos.desktop/contents/lockscreen/LockScreen.qml`
+- `configs/look-and-feel/com.keskos.desktop/contents/splash/Splash.qml`
+- `scripts/setup-lockscreen.sh`
+
+To apply it later by hand:
+
+```bash
+bash scripts/setup-lockscreen.sh "$PWD"
+```
+
+The previously active Plasma Look-and-Feel package, when detected, is stored in:
+
+- `~/.cache/keskos/previous-lookandfeel`
+- `~/.cache/keskos/previous-ksplash-theme`
 
 ## Quickshell HUD
 

@@ -10,16 +10,37 @@ This update turns the old single-action `rofi` prompt into the actual launcher f
 - fixed the main-page live query flow so apps, files, settings, calculator results, units, and web shortcuts appear while typing
 - added an empty-result placeholder row so partial queries like `2+` do not close the launcher
 - added the rest of the intended Meta-based shortcuts instead of only shipping `Meta+K`
+- added a dedicated `KeskOS` Konsole profile and terminal color scheme
+- made fresh terminal windows run a custom `Kesk OS` fastfetch preset automatically through a local shell wrapper
 - changed the KDE setup path so panels are removed by default after backing up the current panel layout
 - added a `kdotool`-backed Wayland window provider for the launcher
 - kept the old `wmctrl` path for X11 sessions
 - added launcher-side debug logging around Wayland window queries and activation
 - added a best-effort installer step for `kdotool-bin` from the AUR
+- added an optional system-branding step so apps that read `/etc/os-release` can report `Kesk OS`
+- added an optional SDDM login screen theme that matches the `keskos` desktop style
+- added a matching Plasma lock screen theme that installs through a local Look-and-Feel package
+- added a matching KDE splash/loading screen with the `keskos` logo and bundled spinner
+- tuned the SDDM and lock-screen layouts so they better match the rest of the `keskos` orange-on-black palette
 - refreshed the README and keybind docs so they match the real installed behavior
 
 ### Added
 
 - `KEYBINDS.md`
+- `configs/fastfetch/config.jsonc`
+- `configs/fastfetch/logo.txt`
+- `configs/konsole/KeskOS.colorscheme`
+- `configs/konsole/KeskOS.profile`
+- `configs/sddm/keskos/Main.qml`
+- `configs/sddm/keskos/metadata.desktop`
+- `configs/sddm/keskos/theme.conf`
+- `configs/look-and-feel/com.keskos.desktop/metadata.json`
+- `configs/look-and-feel/com.keskos.desktop/contents/lockscreen/LockScreen.qml`
+- `configs/look-and-feel/com.keskos.desktop/contents/splash/Splash.qml`
+- `scripts/setup-branding.sh`
+- `scripts/setup-lockscreen.sh`
+- `scripts/setup-sddm.sh`
+- `scripts/setup-terminal.sh`
 - `scripts/setup-window-tools.sh`
 
 ### Notes
@@ -29,6 +50,13 @@ This update turns the old single-action `rofi` prompt into the actual launcher f
 - if `kdotool-bin` cannot be installed automatically, `Active Windows` still falls back cleanly instead of breaking the rest of the launcher
 - the Wayland helper path is logged in `~/.cache/keskos/launcher-debug.log` when `KESKOS_LAUNCHER_DEBUG=1`
 - LibreWolf theming now applies to every discovered profile under both the legacy `~/.librewolf` root and the newer XDG-style `~/.config/librewolf/librewolf` root
+- optional system branding only changes the user-facing distro name fields; it keeps the Arch compatibility identifiers intact
+- the optional login screen theme installs into `/usr/share/sddm/themes/keskos` and tracks the previously active theme in `~/.cache/keskos/sddm-previous-theme`
+- the matching lock screen installs per-user in `~/.local/share/plasma/look-and-feel/com.keskos.desktop` and tracks the previous Look-and-Feel package in `~/.cache/keskos/previous-lookandfeel`
+- the same local Look-and-Feel package now also owns the KDE splash screen and tracks the previous splash theme in `~/.cache/keskos/previous-ksplash-theme`
+- the installer now has a shared Bash UI layer with a banner, grouped phases, selection summary, numbered progress steps, and a stronger completion screen
+- `KESKOS_UI_STYLE=plain` and `NO_COLOR=1` now give a simpler fallback output without changing the install logic
+- fixed the shared installer UI initialization so the guided installer no longer stops partway through under `set -u`
 
 ## 2026-04-25
 

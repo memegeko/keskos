@@ -10,8 +10,11 @@ from .clipboard import copy_text
 from .models import ActionOutcome, Result
 from .utils import (
     browser_homepage_url,
+    hibernate_commands,
     is_kwin_window_id,
     kde_window_runner_commands,
+    kde_poweroff_commands,
+    kde_restart_commands,
     kdotool_path,
     kde_logout_command,
     launch_detached,
@@ -22,6 +25,7 @@ from .utils import (
     open_path,
     run_first_success,
     sanitize_exec,
+    suspend_commands,
 )
 
 
@@ -118,17 +122,21 @@ def execute_action(result: Result) -> ActionOutcome:
                 return ActionOutcome()
             return ActionOutcome(close_rofi=False, message="No KDE logout command succeeded.")
         if name == "suspend":
-            launch_detached(["systemctl", "suspend"])
-            return ActionOutcome()
+            if run_first_success(suspend_commands()):
+                return ActionOutcome()
+            return ActionOutcome(close_rofi=False, message="No suspend command succeeded.")
         if name == "hibernate":
-            launch_detached(["systemctl", "hibernate"])
-            return ActionOutcome()
+            if run_first_success(hibernate_commands()):
+                return ActionOutcome()
+            return ActionOutcome(close_rofi=False, message="No hibernate command succeeded.")
         if name == "reboot":
-            launch_detached(["systemctl", "reboot"])
-            return ActionOutcome()
+            if run_first_success(kde_restart_commands()):
+                return ActionOutcome()
+            return ActionOutcome(close_rofi=False, message="No restart command succeeded.")
         if name == "poweroff":
-            launch_detached(["systemctl", "poweroff"])
-            return ActionOutcome()
+            if run_first_success(kde_poweroff_commands()):
+                return ActionOutcome()
+            return ActionOutcome(close_rofi=False, message="No shutdown command succeeded.")
         return ActionOutcome(close_rofi=False, message=f"Unsupported power action: {name}")
 
     if action_type == "window":

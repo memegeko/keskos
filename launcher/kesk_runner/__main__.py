@@ -12,7 +12,7 @@ from .cache import cache_dir, warm_caches
 from .models import Result, SearchContext
 from .providers import apps, calc, commands, files, places, power, recent, settings, units, web, windows
 from .recent import RecentStore
-from .utils import CATEGORY_WEIGHTS, escape_markup, is_math_expression, launcher_debug_log
+from .utils import CATEGORY_WEIGHTS, escape_markup, is_math_expression, launcher_debug_log, normalize_text
 
 
 MODE_NAMES = {
@@ -288,20 +288,56 @@ def emit_rows(mode: str, query: str, store: RecentStore, state: dict) -> None:
         print(f"{row}\0" + "\x1f".join(options))
 
 
-def resolve_custom_selection(mode: str, query: str, store: RecentStore) -> Result | None:
-    if not query.strip():
-        return None
-    results, _ = build_results(mode, query, store, {})
+def resolve_custom_selection(mode: str, query: str, entry_text: str, store: RecentStore) -> Result | None:
+    fallback_query = query if query.strip() else ""
+    results, _ = build_results(mode, fallback_query, store, {})
+    if not results and query.strip():
+        results, _ = build_results(mode, "", store, {})
+
+    normalized_entry = normalize_text(entry_text)
+    normalized_query = normalize_text(query)
+    if normalized_entry and normalized_query and normalized_entry == normalized_query:
+        for result in results:
+            if not result.nonselectable:
+                return result
+
+    if normalized_entry:
+        direct_matches: list[Result] = []
+        row_matches: list[Result] = []
+        for result in results:
+            if result.nonselectable:
+                continue
+            title_text = normalize_text(result.title)
+            row_text = normalize_text(row_search_text(result))
+            if normalized_entry == title_text or normalized_entry == row_text:
+                return result
+            if title_text and title_text in normalized_entry:
+                direct_matches.append(result)
+            elif row_text and row_text in normalized_entry:
+                row_matches.append(result)
+
+        if len(direct_matches) == 1:
+            return direct_matches[0]
+        if direct_matches:
+            direct_matches.sort(key=lambda result: (-len(result.title), -result.score))
+            return direct_matches[0]
+        if len(row_matches) == 1:
+            return row_matches[0]
+        if row_matches:
+            row_matches.sort(key=lambda result: (-len(row_search_text(result)), -result.score))
+            return row_matches[0]
+
     for result in results:
         if not result.nonselectable:
             return result
     return None
 
 
-def maybe_confirm_or_execute(result: Result, state: dict, store: RecentStore) -> tuple[bool, dict]:
+def maybe_confirm_or_execute(mode: str, result: Result, state: dict, store: RecentStore) -> tuple[bool, dict]:
     digest = action_digest(result.action)
     debug_log(f"selected={result.id} action={json.dumps(result.action, ensure_ascii=True, sort_keys=True)} query={os.environ.get('ROFI_INPUT', '')!r} retv={os.environ.get('ROFI_RETV', '')}")
-    if result.dangerous and state.get("confirm") != digest:
+    requires_confirmation = result.dangerous and mode != "power"
+    if requires_confirmation and state.get("confirm") != digest:
         state["confirm"] = digest
         state["message"] = f"Confirm action: {result.title}"
         debug_log(f"confirm-required={digest}")
@@ -371,6 +407,23 @@ def script_mode(mode: str, entry_text: str = "") -> int:
         return 0
 
     if retv == 2:
+        if mode == "power":
+            selected = deserialize_info(os.environ.get("ROFI_INFO"))
+            if selected is not None:
+                should_close, next_state = maybe_confirm_or_execute(mode, selected, state, store)
+                if should_close:
+                    return 0
+                emit_rows(mode, query, store, next_state)
+                return 0
+
+            selected = resolve_custom_selection(mode, raw_query, entry_text, store)
+            if selected is not None:
+                should_close, next_state = maybe_confirm_or_execute(mode, selected, state, store)
+                if should_close:
+                    return 0
+                emit_rows(mode, raw_query, store, next_state)
+                return 0
+
         state.pop("confirm", None)
         state.pop("message", None)
         emit_rows(mode, query, store, state)
@@ -379,12 +432,12 @@ def script_mode(mode: str, entry_text: str = "") -> int:
     if retv == 1:
         selected = deserialize_info(os.environ.get("ROFI_INFO"))
         if selected is None:
-            selected = resolve_custom_selection(mode, query, store)
+            selected = resolve_custom_selection(mode, raw_query, entry_text, store)
         if selected is None:
             emit_rows(mode, query, store, state)
             return 0
 
-        should_close, next_state = maybe_confirm_or_execute(selected, state, store)
+        should_close, next_state = maybe_confirm_or_execute(mode, selected, state, store)
         if should_close:
             return 0
         emit_rows(mode, query, store, next_state)

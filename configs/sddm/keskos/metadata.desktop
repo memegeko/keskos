@@ -1,0 +1,14 @@
+[SddmGreeterTheme]
+Name=KeskOS
+Description=KeskOS retro-futuristic login screen
+Author=OpenAI + memegeko
+Copyright=
+License=MIT
+Type=sddm-theme
+Version=1.0
+Website=https://github.com/memegeko/keskos
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=keskos
+Theme-API=2.0
+QtVersion=6
