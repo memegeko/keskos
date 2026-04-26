@@ -27,6 +27,16 @@ warn() {
 
 mkdir -p "$HOME/.local/share/keskos/assets" "$HOME/.local/bin"
 
+rm -f \
+  "$HOME/.local/share/keskos/assets/wallpaper.svg" \
+  "$HOME/.local/share/keskos/assets/wallpaper-1920x1080.png" \
+  "$HOME/.local/share/keskos/assets/wallpaper-2560x1440.png" \
+  "$HOME/.local/share/keskos/assets/wallpaper-4096x2160.png" \
+  "$HOME/.local/share/keskos/assets/kesk_os_logo_text.png" \
+  "$HOME/.local/share/keskos/assets/wallpaper.png" \
+  "$HOME/.local/share/keskos/assets/wallpaper.jpg" \
+  "$HOME/.local/share/keskos/assets/wallpaper.jpeg"
+
 installed_wallpaper=0
 
 for wallpaper_asset in \
@@ -44,6 +54,12 @@ for wallpaper_asset in \
     installed_wallpaper=1
   fi
 done
+
+if [[ -f "$REPO_DIR/assets/kesk_os_logo_text.png" ]]; then
+  install -m 644 \
+    "$REPO_DIR/assets/kesk_os_logo_text.png" \
+    "$HOME/.local/share/keskos/assets/kesk_os_logo_text.png"
+fi
 
 if [[ "$installed_wallpaper" -eq 0 ]]; then
   warn "No wallpaper asset was found in the repo."

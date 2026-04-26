@@ -22,6 +22,8 @@ This update turns the old single-action `rofi` prompt into the actual launcher f
 - added a matching Plasma lock screen theme that installs through a local Look-and-Feel package
 - added a matching KDE splash/loading screen with the `keskos` logo and bundled spinner
 - tuned the SDDM and lock-screen layouts so they better match the rest of the `keskos` orange-on-black palette
+- rebuilt the Quickshell HUD and wallpaper geometry so the desktop now matches the six-panel reference layout much more closely
+- regenerated the shipped wallpaper PNGs from the new 4K SVG master and made wallpaper refreshes clear stale installed variants first
 - refreshed the README and keybind docs so they match the real installed behavior
 
 ### Added
@@ -57,6 +59,7 @@ This update turns the old single-action `rofi` prompt into the actual launcher f
 - the installer now has a shared Bash UI layer with a banner, grouped phases, selection summary, numbered progress steps, and a stronger completion screen
 - `KESKOS_UI_STYLE=plain` and `NO_COLOR=1` now give a simpler fallback output without changing the install logic
 - fixed the shared installer UI initialization so the guided installer no longer stops partway through under `set -u`
+- Quickshell now uses tighter text styling, exact-ish reference-aligned panel anchors, segmented memory/network meters, and richer live helper data
 
 ## 2026-04-25
 

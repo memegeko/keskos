@@ -5,8 +5,8 @@ Item {
 
     property var dataObject: ({})
     property real scaleFactor: 1.0
-    property int panelWidth: 385
-    property int panelHeight: 172
+    property int panelWidth: 770
+    property int panelHeight: 420
 
     width: panelWidth
     height: panelHeight
@@ -14,52 +14,88 @@ Item {
 
     Column {
         anchors.fill: parent
-        spacing: Math.round(4 * root.scaleFactor)
-
-        GlowText {
-            text: "NETWORK"
-            fontSize: Math.round(17 * root.scaleFactor)
-            fontWeight: Font.DemiBold
-            letterSpacing: Math.round(3 * root.scaleFactor)
-        }
-
-        HudRule {
-            width: parent.width
-        }
+        spacing: Math.round(14 * root.scaleFactor)
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(182 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "IP"
+            label: "LOCAL IP:"
             value: root.dataObject.local_ip || "n/a"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(182 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "GATEWAY"
+            label: "GATEWAY:"
             value: root.dataObject.gateway || "n/a"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(182 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "STATUS"
-            value: root.dataObject.status || "offline"
+            label: "CONNECTION:"
+            value: root.dataObject.connection || "Disconnected"
+        }
+
+        HudRule {
+            width: Math.round(690 * root.scaleFactor)
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(182 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "DOWN"
+            label: "DOWNLOAD:"
             value: root.dataObject.down || "0 B/s"
         }
 
+        Item {
+            width: root.panelWidth
+            height: Math.round(32 * root.scaleFactor)
+
+            BarStrip {
+                x: Math.round(182 * root.scaleFactor)
+                stripWidth: Math.round(454 * root.scaleFactor)
+                stripHeight: Math.round(32 * root.scaleFactor)
+                scaleFactor: root.scaleFactor
+                values: root.dataObject.download_history || []
+            }
+        }
+
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(182 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "UP"
+            label: "UPLOAD:"
             value: root.dataObject.up || "0 B/s"
+        }
+
+        Item {
+            width: root.panelWidth
+            height: Math.round(24 * root.scaleFactor)
+
+            BarStrip {
+                x: Math.round(182 * root.scaleFactor)
+                stripWidth: Math.round(454 * root.scaleFactor)
+                stripHeight: Math.round(24 * root.scaleFactor)
+                scaleFactor: root.scaleFactor
+                values: root.dataObject.upload_history || []
+            }
+        }
+
+        HudRule {
+            width: Math.round(690 * root.scaleFactor)
+        }
+
+        HudFieldRow {
+            rowWidth: root.panelWidth
+            labelWidth: Math.round(182 * root.scaleFactor)
+            scaleFactor: root.scaleFactor
+            label: "STATUS:"
+            value: root.dataObject.status || "OFFLINE"
         }
     }
 }

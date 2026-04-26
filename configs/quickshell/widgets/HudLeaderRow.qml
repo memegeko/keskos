@@ -5,11 +5,12 @@ Item {
     id: root
 
     property string label: ""
-    property string value: ""
+    property string status: "OK"
+    property string leader: ".........."
     property real scaleFactor: 1.0
     property int rowWidth: 380
-    property int labelWidth: Math.round(152 * root.scaleFactor)
-    property bool valueRightAligned: false
+    property int labelWidth: Math.round(170 * root.scaleFactor)
+    property int statusWidth: Math.round(58 * root.scaleFactor)
 
     width: rowWidth
     implicitHeight: layout.implicitHeight
@@ -23,16 +24,23 @@ Item {
         GlowText {
             Layout.preferredWidth: root.labelWidth
             text: root.label
-            dim: true
             fontSize: Math.round(12 * root.scaleFactor)
-            letterSpacing: Math.round(0.6 * root.scaleFactor)
+            letterSpacing: Math.round(0.3 * root.scaleFactor)
         }
 
         GlowText {
             Layout.fillWidth: true
-            text: root.value
+            text: root.leader
+            dim: true
             fontSize: Math.round(12 * root.scaleFactor)
-            horizontalAlignment: root.valueRightAligned ? Text.AlignRight : Text.AlignLeft
+            letterSpacing: Math.round(0.2 * root.scaleFactor)
+        }
+
+        GlowText {
+            Layout.preferredWidth: root.statusWidth
+            text: root.status
+            fontSize: Math.round(12 * root.scaleFactor)
+            horizontalAlignment: Text.AlignRight
             letterSpacing: Math.round(0.3 * root.scaleFactor)
         }
     }

@@ -5,8 +5,8 @@ Item {
 
     property var dataObject: ({})
     property real scaleFactor: 1.0
-    property int panelWidth: 385
-    property int panelHeight: 152
+    property int panelWidth: 770
+    property int panelHeight: 334
 
     width: panelWidth
     height: panelHeight
@@ -14,24 +14,54 @@ Item {
 
     Column {
         anchors.fill: parent
-        spacing: Math.round(4 * root.scaleFactor)
+        spacing: Math.round(15 * root.scaleFactor)
 
-        GlowText {
-            text: "CORE MODULES"
-            fontSize: Math.round(17 * root.scaleFactor)
-            fontWeight: Font.DemiBold
-            letterSpacing: Math.round(3 * root.scaleFactor)
+        HudLeaderRow {
+            rowWidth: root.panelWidth
+            scaleFactor: root.scaleFactor
+            label: "SYS_MONITOR"
+            leader: ".........."
+            status: "OK"
         }
 
-        HudRule {
-            width: parent.width
+        HudLeaderRow {
+            rowWidth: root.panelWidth
+            scaleFactor: root.scaleFactor
+            label: "NET_MANAGER"
+            leader: ".........."
+            status: "OK"
         }
 
-        GlowText { text: "SYS_MONITOR .... OK"; fontSize: Math.round(12 * root.scaleFactor) }
-        GlowText { text: "NET_MANAGER .... OK"; fontSize: Math.round(12 * root.scaleFactor) }
-        GlowText { text: "FILE_SYSTEM .... OK"; fontSize: Math.round(12 * root.scaleFactor) }
-        GlowText { text: "PROCESSOR ...... OK"; fontSize: Math.round(12 * root.scaleFactor) }
-        GlowText { text: "MEMORY ......... OK"; fontSize: Math.round(12 * root.scaleFactor) }
-        GlowText { text: "DISPLAY_SERVER . OK"; fontSize: Math.round(12 * root.scaleFactor) }
+        HudLeaderRow {
+            rowWidth: root.panelWidth
+            scaleFactor: root.scaleFactor
+            label: "FILE_SYSTEM"
+            leader: ".........."
+            status: "OK"
+        }
+
+        HudLeaderRow {
+            rowWidth: root.panelWidth
+            scaleFactor: root.scaleFactor
+            label: "PROCESSOR"
+            leader: ".........."
+            status: "OK"
+        }
+
+        HudLeaderRow {
+            rowWidth: root.panelWidth
+            scaleFactor: root.scaleFactor
+            label: "MEMORY"
+            leader: ".........."
+            status: "OK"
+        }
+
+        HudLeaderRow {
+            rowWidth: root.panelWidth
+            scaleFactor: root.scaleFactor
+            label: "DISPLAY_SERVER"
+            leader: ".........."
+            status: "OK"
+        }
     }
 }

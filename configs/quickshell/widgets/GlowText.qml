@@ -12,7 +12,8 @@ Item {
     property bool dim: false
     property int horizontalAlignment: Text.AlignLeft
     property int verticalAlignment: Text.AlignVCenter
-    property color renderColor: dim ? "#9d582f" : color
+    property real glowOpacity: dim ? 0.12 : 0.18
+    property color renderColor: dim ? "#9b532a" : color
 
     implicitWidth: front.implicitWidth
     implicitHeight: front.implicitHeight
@@ -23,7 +24,7 @@ Item {
         anchors.fill: front
         text: front.text
         color: root.renderColor
-        opacity: 0.24
+        opacity: root.glowOpacity
         font.family: root.fontFamily
         font.pixelSize: root.fontSize + 1
         font.weight: root.fontWeight

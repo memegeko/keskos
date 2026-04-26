@@ -1,33 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="4096" height="2160" viewBox="0 0 4096 2160">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#050505"/>
-      <stop offset="55%" stop-color="#000000"/>
-      <stop offset="100%" stop-color="#030303"/>
+      <stop offset="0%" stop-color="#040302"/>
+      <stop offset="45%" stop-color="#020201"/>
+      <stop offset="100%" stop-color="#060403"/>
     </linearGradient>
 
-    <radialGradient id="vignette" cx="50%" cy="48%" r="72%">
+    <radialGradient id="vignette" cx="50%" cy="48%" r="76%">
       <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="75%" stop-color="#000000" stop-opacity="0.16"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.42"/>
+      <stop offset="72%" stop-color="#000000" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.44"/>
     </radialGradient>
 
     <pattern id="scanlines" width="8" height="8" patternUnits="userSpaceOnUse">
       <rect width="8" height="4" fill="#000000" fill-opacity="0"/>
-      <rect y="4" width="8" height="1" fill="#ce6a35" fill-opacity="0.04"/>
+      <rect y="4" width="8" height="1" fill="#ce6a35" fill-opacity="0.05"/>
       <rect y="5" width="8" height="3" fill="#000000" fill-opacity="0.12"/>
     </pattern>
 
     <filter id="grain" x="-20%" y="-20%" width="140%" height="140%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="9" stitchTiles="stitch"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="2" seed="11" stitchTiles="stitch"/>
       <feColorMatrix type="saturate" values="0"/>
       <feComponentTransfer>
         <feFuncA type="table" tableValues="0 0.08"/>
       </feComponentTransfer>
     </filter>
 
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -35,115 +35,204 @@
     </filter>
 
     <style>
-      .hud-line { fill: none; stroke: #ce6a35; stroke-width: 2; stroke-opacity: 0.22; }
-      .hud-faint { fill: none; stroke: #ce6a35; stroke-width: 1; stroke-opacity: 0.12; }
-      .hud-box { fill: rgba(0, 0, 0, 0.14); stroke: #ce6a35; stroke-width: 2; stroke-opacity: 0.2; }
-      .hud-fill { fill: #ce6a35; fill-opacity: 0.06; }
-      .hud-label { fill: #ce6a35; fill-opacity: 0.7; font-size: 28px; letter-spacing: 5px; font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace; }
-      .hud-tiny { fill: #ce6a35; fill-opacity: 0.42; font-size: 24px; letter-spacing: 4px; font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace; }
-      .hud-title { fill: #ce6a35; fill-opacity: 0.96; font-size: 112px; letter-spacing: 8px; font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace; }
-      .hud-subtitle { fill: #ce6a35; fill-opacity: 0.92; font-size: 56px; letter-spacing: 6px; font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace; }
-      .hud-tagline { fill: #ce6a35; fill-opacity: 0.84; font-size: 50px; letter-spacing: 5px; font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace; }
+      .frame { fill: none; stroke: #ce6a35; stroke-width: 3; stroke-opacity: 0.9; }
+      .frame-soft { fill: none; stroke: #ce6a35; stroke-width: 2; stroke-opacity: 0.42; }
+      .frame-faint { fill: none; stroke: #ce6a35; stroke-width: 1; stroke-opacity: 0.2; }
+      .box-fill { fill: #050302; fill-opacity: 0.72; }
+      .label {
+        fill: #f07e36;
+        font-size: 64px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace;
+      }
+      .tiny {
+        fill: #ce6a35;
+        fill-opacity: 0.52;
+        font-size: 22px;
+        letter-spacing: 7px;
+        font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace;
+      }
+      .title {
+        fill: #e47734;
+        font-size: 152px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-family: 'Liberation Serif', 'Noto Serif', serif;
+      }
+      .tm {
+        fill: #f07e36;
+        font-size: 74px;
+        font-weight: 700;
+        font-family: 'Liberation Serif', 'Noto Serif', serif;
+      }
     </style>
   </defs>
 
   <rect width="4096" height="2160" fill="url(#bg)"/>
   <rect width="4096" height="2160" fill="url(#scanlines)"/>
-  <rect width="4096" height="2160" filter="url(#grain)" opacity="0.24"/>
+  <rect width="4096" height="2160" filter="url(#grain)" opacity="0.22"/>
   <rect width="4096" height="2160" fill="url(#vignette)"/>
 
-  <g opacity="0.86">
-    <path class="hud-line" d="M170 82h302"/>
-    <path class="hud-line" d="M710 82h1724"/>
-    <path class="hud-line" d="M2662 82h1218"/>
-    <path class="hud-line" d="M170 2076h924"/>
-    <path class="hud-line" d="M1284 2076h1386"/>
-    <path class="hud-line" d="M2898 2076h982"/>
-
-    <path class="hud-line" d="M92 150v120"/>
-    <path class="hud-line" d="M92 486v1440"/>
-    <path class="hud-line" d="M4004 150v120"/>
-    <path class="hud-line" d="M4004 486v1440"/>
-
-    <path class="hud-line" d="M130 122h120"/>
-    <path class="hud-line" d="M92 150v118"/>
-    <path class="hud-line" d="M3884 122h120"/>
-    <path class="hud-line" d="M4004 150v118"/>
-    <path class="hud-line" d="M130 2038h120"/>
-    <path class="hud-line" d="M92 1920v118"/>
-    <path class="hud-line" d="M3884 2038h120"/>
-    <path class="hud-line" d="M4004 1920v118"/>
-  </g>
-
-  <g opacity="0.78">
-    <path class="hud-faint" d="M146 146h96l18 18"/>
-    <path class="hud-faint" d="M3886 146h-96l-18 18"/>
-    <path class="hud-faint" d="M146 2014h96l18-18"/>
-    <path class="hud-faint" d="M3886 2014h-96l-18-18"/>
-
-    <path class="hud-faint" d="M286 82l18 18h20l18-18h20l18 18h20l18-18h20l18 18h20l18-18h20"/>
-    <path class="hud-faint" d="M3544 82l18 18h20l18-18h20l18 18h20l18-18h20l18 18h20l18-18h20"/>
-    <path class="hud-faint" d="M286 2076l18-18h20l18 18h20l18-18h20l18 18h20l18-18h20l18 18h20"/>
-    <path class="hud-faint" d="M3544 2076l18-18h20l18 18h20l18-18h20l18 18h20l18-18h20l18 18h20"/>
+  <g opacity="0.88">
+    <path class="frame" d="M32 72V2088"/>
+    <path class="frame" d="M4064 72V2088"/>
+    <path class="frame" d="M72 32H1098"/>
+    <path class="frame" d="M2998 32H4024"/>
+    <path class="frame" d="M72 2128H1098"/>
+    <path class="frame" d="M2998 2128H4024"/>
+    <path class="frame" d="M32 72l40-40"/>
+    <path class="frame" d="M4064 72l-40-40"/>
+    <path class="frame" d="M32 2088l40 40"/>
+    <path class="frame" d="M4064 2088l-40 40"/>
   </g>
 
   <g opacity="0.8">
-    <rect class="hud-box" x="152" y="158" width="770" height="304"/>
-    <rect class="hud-box" x="152" y="742" width="770" height="304"/>
-    <rect class="hud-box" x="152" y="1328" width="770" height="344"/>
-
-    <rect class="hud-box" x="3174" y="158" width="770" height="344"/>
-    <rect class="hud-box" x="3174" y="742" width="770" height="304"/>
-    <rect class="hud-box" x="3174" y="1328" width="770" height="304"/>
-
-    <rect class="hud-fill" x="152" y="158" width="770" height="28"/>
-    <rect class="hud-fill" x="152" y="742" width="770" height="28"/>
-    <rect class="hud-fill" x="152" y="1328" width="770" height="28"/>
-    <rect class="hud-fill" x="3174" y="158" width="770" height="28"/>
-    <rect class="hud-fill" x="3174" y="742" width="770" height="28"/>
-    <rect class="hud-fill" x="3174" y="1328" width="770" height="28"/>
-
-    <path class="hud-faint" d="M188 208h148"/>
-    <path class="hud-faint" d="M188 792h148"/>
-    <path class="hud-faint" d="M188 1378h148"/>
-    <path class="hud-faint" d="M3210 208h148"/>
-    <path class="hud-faint" d="M3210 792h148"/>
-    <path class="hud-faint" d="M3210 1378h148"/>
+    <path class="frame-soft" d="M116 56h344"/>
+    <path class="frame-soft" d="M3628 56h344"/>
+    <path class="frame-soft" d="M116 2104h344"/>
+    <path class="frame-soft" d="M3628 2104h344"/>
+    <circle cx="90" cy="58" r="7" fill="#ce6a35" fill-opacity="0.85"/>
+    <circle cx="4006" cy="58" r="7" fill="#ce6a35" fill-opacity="0.85"/>
+    <circle cx="90" cy="2102" r="7" fill="#ce6a35" fill-opacity="0.85"/>
+    <circle cx="4006" cy="2102" r="7" fill="#ce6a35" fill-opacity="0.85"/>
+    <text class="tiny" x="230" y="54">CORE</text>
+    <text class="tiny" x="3572" y="54">CLEAR</text>
+    <text class="tiny" x="230" y="2130">FIELD</text>
+    <text class="tiny" x="3572" y="2130">GRID</text>
   </g>
 
-  <g opacity="0.4">
-    <path class="hud-faint" d="M1040 1020h2112"/>
-    <path class="hud-faint" d="M1040 1110h1242"/>
-    <path class="hud-faint" d="M1820 1208h1430"/>
-    <path class="hud-faint" d="M1008 1286h1328"/>
-    <path class="hud-faint" d="M2500 1286h650"/>
+  <g opacity="0.7">
+    <path class="frame-faint" d="M1312 0v2160" stroke-dasharray="3 24"/>
+    <path class="frame-faint" d="M1568 0v2160" stroke-dasharray="3 38"/>
+    <path class="frame-faint" d="M1838 0v2160" stroke-dasharray="3 21"/>
+    <path class="frame-faint" d="M2132 0v2160" stroke-dasharray="3 31"/>
+    <path class="frame-faint" d="M2418 0v2160" stroke-dasharray="3 18"/>
+    <path class="frame-faint" d="M2674 0v2160" stroke-dasharray="3 29"/>
+    <path class="frame-faint" d="M2932 0v2160" stroke-dasharray="3 22"/>
   </g>
 
-  <g filter="url(#glow)">
-    <text class="hud-label" x="190" y="210">SYSTEM STATUS</text>
-    <text class="hud-label" x="190" y="794">CORE MODULES</text>
-    <text class="hud-label" x="190" y="1380">NETWORK</text>
-
-    <text class="hud-label" x="3212" y="210">SYSTEM LOG</text>
-    <text class="hud-label" x="3212" y="794">SYSTEM PROFILE</text>
-    <text class="hud-label" x="3212" y="1380">MEMORY</text>
-
-    <text class="hud-title" x="1024" y="1116">KESKOS // ONLINE</text>
-    <path class="hud-line" d="M1038 1172h1328"/>
-    <text class="hud-subtitle" x="1038" y="1328">PRESS META+K TO ACCESS COMMAND LAYER</text>
-    <rect x="2360" y="1246" width="44" height="92" fill="#ce6a35" fill-opacity="0.92"/>
-    <text class="hud-tagline" x="1038" y="1490">FUTURE BUILT IN THE 90S</text>
+  <g opacity="0.7">
+    <circle cx="1590" cy="112" r="2" fill="#ce6a35"/>
+    <circle cx="1712" cy="168" r="2" fill="#ce6a35"/>
+    <circle cx="1884" cy="102" r="2" fill="#ce6a35"/>
+    <circle cx="2268" cy="184" r="2" fill="#ce6a35"/>
+    <circle cx="2486" cy="98" r="2" fill="#ce6a35"/>
+    <circle cx="2658" cy="146" r="2" fill="#ce6a35"/>
+    <circle cx="1496" cy="892" r="2" fill="#ce6a35"/>
+    <circle cx="1748" cy="952" r="2" fill="#ce6a35"/>
+    <circle cx="2288" cy="1010" r="2" fill="#ce6a35"/>
+    <circle cx="2562" cy="936" r="2" fill="#ce6a35"/>
+    <circle cx="1660" cy="1710" r="2" fill="#ce6a35"/>
+    <circle cx="1940" cy="1760" r="2" fill="#ce6a35"/>
+    <circle cx="2356" cy="1684" r="2" fill="#ce6a35"/>
+    <circle cx="2718" cy="1812" r="2" fill="#ce6a35"/>
   </g>
 
-  <g opacity="0.52">
-    <text class="hud-tiny" x="196" y="2050">KESKOS INTERFACE 01.0.0</text>
-    <text class="hud-tiny" x="768" y="82">HUD ALIGNMENT</text>
-    <text class="hud-tiny" x="3604" y="82">MACHINE FRAME</text>
+  <!-- Left column boxes -->
+  <g opacity="0.92">
+    <rect class="box-fill" x="58" y="104" width="944" height="524"/>
+    <rect class="frame" x="58" y="104" width="944" height="524"/>
+    <rect x="906" y="120" width="54" height="54" fill="#ce6a35" fill-opacity="0.82"/>
+    <polygon points="920,134 960,134 960,174" fill="#0b0704"/>
+    <path class="frame-soft" d="M110 228H958"/>
+    <rect x="82" y="580" width="68" height="16" fill="#ce6a35" fill-opacity="0.8"/>
+    <rect x="748" y="594" width="40" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="796" y="594" width="18" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="822" y="594" width="18" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <path class="frame-soft" d="M58 104l24 24M58 628l24-24M1002 104l-24 24M1002 628l-24-24"/>
+    <text class="label" x="122" y="192">SYSTEM STATUS</text>
+  </g>
 
-    <text class="hud-tiny" transform="translate(110 1710) rotate(-90)">STATION CHANNEL 04</text>
-    <text class="hud-tiny" transform="translate(3980 1560) rotate(90)">DISPLAY FIELD 09</text>
+  <g opacity="0.92">
+    <rect class="box-fill" x="58" y="720" width="944" height="576"/>
+    <rect class="frame" x="58" y="720" width="944" height="576"/>
+    <rect x="906" y="736" width="54" height="54" fill="#ce6a35" fill-opacity="0.82"/>
+    <polygon points="920,750 960,750 960,790" fill="#0b0704"/>
+    <path class="frame-soft" d="M110 844H958"/>
+    <rect x="98" y="1248" width="18" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="124" y="1248" width="18" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="150" y="1248" width="18" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <rect x="774" y="1248" width="54" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="836" y="1248" width="20" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="864" y="1248" width="20" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <path class="frame-soft" d="M58 720l24 24M58 1296l24-24M1002 720l-24 24M1002 1296l-24-24"/>
+    <text class="label" x="122" y="808">CORE MODULES</text>
+  </g>
 
-    <path class="hud-faint" d="M1898 68l18 18m0-18l-18 18"/>
-    <path class="hud-faint" d="M1898 2070l18-18m0 18l-18-18"/>
+  <g opacity="0.92">
+    <rect class="box-fill" x="58" y="1388" width="944" height="676"/>
+    <rect class="frame" x="58" y="1388" width="944" height="676"/>
+    <rect x="906" y="1404" width="54" height="54" fill="#ce6a35" fill-opacity="0.82"/>
+    <polygon points="920,1418 960,1418 960,1458" fill="#0b0704"/>
+    <path class="frame-soft" d="M110 1512H958"/>
+    <rect x="98" y="2016" width="18" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="124" y="2016" width="18" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="150" y="2016" width="18" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <rect x="774" y="2016" width="54" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="836" y="2016" width="20" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="864" y="2016" width="20" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <path class="frame-soft" d="M58 1388l24 24M58 2064l24-24M1002 1388l-24 24M1002 2064l-24-24"/>
+    <text class="label" x="122" y="1476">NETWORK STATUS</text>
+  </g>
+
+  <!-- Right column boxes -->
+  <g opacity="0.92">
+    <rect class="box-fill" x="2808" y="104" width="1230" height="632"/>
+    <rect class="frame" x="2808" y="104" width="1230" height="632"/>
+    <rect x="3942" y="120" width="54" height="54" fill="#ce6a35" fill-opacity="0.82"/>
+    <polygon points="3942,134 3982,174 3982,134" fill="#0b0704"/>
+    <path class="frame-soft" d="M2860 228H3994"/>
+    <rect x="2894" y="686" width="18" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="2920" y="686" width="18" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="2946" y="686" width="18" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <rect x="3632" y="686" width="54" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="3694" y="686" width="20" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="3722" y="686" width="20" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <path class="frame-soft" d="M2808 104l24 24M2808 736l24-24M4038 104l-24 24M4038 736l-24-24"/>
+    <text class="label" x="2868" y="192">SYSTEM LOG</text>
+  </g>
+
+  <g opacity="0.92">
+    <rect class="box-fill" x="2900" y="818" width="1138" height="612"/>
+    <rect class="frame" x="2900" y="818" width="1138" height="612"/>
+    <rect x="3942" y="834" width="54" height="54" fill="#ce6a35" fill-opacity="0.82"/>
+    <polygon points="3942,848 3982,888 3982,848" fill="#0b0704"/>
+    <path class="frame-soft" d="M2952 942H3994"/>
+    <rect x="2986" y="1380" width="18" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="3012" y="1380" width="18" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="3038" y="1380" width="18" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <rect x="3738" y="1380" width="54" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="3800" y="1380" width="20" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="3828" y="1380" width="20" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <path class="frame-soft" d="M2900 818l24 24M2900 1430l24-24M4038 818l-24 24M4038 1430l-24-24"/>
+    <text class="label" x="2960" y="906">SYSTEM PROFILE</text>
+  </g>
+
+  <g opacity="0.92">
+    <rect class="box-fill" x="2900" y="1512" width="1138" height="554"/>
+    <rect class="frame" x="2900" y="1512" width="1138" height="554"/>
+    <rect x="3942" y="1528" width="54" height="54" fill="#ce6a35" fill-opacity="0.82"/>
+    <polygon points="3942,1542 3982,1582 3982,1542" fill="#0b0704"/>
+    <path class="frame-soft" d="M2952 1636H3994"/>
+    <rect x="2986" y="2016" width="18" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="3012" y="2016" width="18" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="3038" y="2016" width="18" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <rect x="3738" y="2016" width="54" height="10" fill="#ce6a35" fill-opacity="0.92"/>
+    <rect x="3800" y="2016" width="20" height="10" fill="#ce6a35" fill-opacity="0.84"/>
+    <rect x="3828" y="2016" width="20" height="10" fill="#ce6a35" fill-opacity="0.74"/>
+    <path class="frame-soft" d="M2900 1512l24 24M2900 2066l24-24M4038 1512l-24 24M4038 2066l-24-24"/>
+    <text class="label" x="2960" y="1600">MEMORY STATUS</text>
+  </g>
+
+  <!-- Center logo -->
+  <g opacity="0.98">
+    <image
+      x="1280"
+      y="700"
+      width="1560"
+      height="1040"
+      href="kesk_os_logo_text.png"
+      preserveAspectRatio="xMidYMid meet"/>
   </g>
 </svg>

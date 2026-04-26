@@ -339,12 +339,12 @@ If widgets are enabled, `keskos` installs a Quickshell overlay that matches the 
 
 - left top: `SYSTEM STATUS`
 - left middle: `CORE MODULES`
-- left bottom: `NETWORK`
+- left bottom: `NETWORK STATUS`
 - right top: `SYSTEM LOG`
 - right middle: `SYSTEM PROFILE`
-- right bottom: `MEMORY`
+- right bottom: `MEMORY STATUS`
 
-The center stays clear for the wallpaper title.
+The center stays clear for the larger `KeskOS` logo and machine-frame artwork from the wallpaper itself.
 
 The HUD is:
 
@@ -378,9 +378,9 @@ The data helper installed into your home directory is:
 
 Scaling rules:
 
-- `4K` -> `1.5`
-- `1440p` -> `1.2`
-- `1080p` -> `1.0`
+- the wallpaper profile is still chosen as `1080p`, `1440p`, or `4K`
+- Quickshell placement now scales from the 4096-wide master layout using the real screen width ratio
+- this keeps the text blocks aligned to the drawn wallpaper boxes more closely across common 16:9 resolutions
 
 You can rerun it manually:
 
@@ -408,6 +408,15 @@ To apply the wallpaper manually:
 ```
 
 The wallpaper helper prefers a matching PNG when possible and falls back to the SVG or a black Plasma background.
+
+If you update the wallpaper or HUD layout in the repo and your desktop still shows an older center-text wallpaper, refresh the installed assets and restart the HUD:
+
+```bash
+bash scripts/setup-wallpaper.sh "$PWD"
+bash scripts/setup-quickshell.sh "$PWD"
+~/.local/bin/keskos-wallpaper-apply
+~/.local/bin/keskos-start-quickshell
+```
 
 ## KDE Theme And Panels
 

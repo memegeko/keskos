@@ -77,11 +77,11 @@ select_profile() {
   local width="$1"
 
   if (( width >= 3840 )); then
-    printf '%s %s\n' "4k" "1.5"
+    printf '%s\n' "4k"
   elif (( width >= 2560 )); then
-    printf '%s %s\n' "1440p" "1.2"
+    printf '%s\n' "1440p"
   else
-    printf '%s %s\n' "1080p" "1.0"
+    printf '%s\n' "1080p"
   fi
 }
 
@@ -98,7 +98,8 @@ EOF
 
 main() {
   read -r screen_width screen_height < <(detect_resolution)
-  read -r profile scale_factor < <(select_profile "$screen_width")
+  profile="$(select_profile "$screen_width")"
+  scale_factor="$(awk -v width="$screen_width" 'BEGIN { printf "%.6f", width / 4096 }')"
   write_env_file
   log "Selected ${profile} (${scale_factor}x) for ${screen_width}x${screen_height}."
 }

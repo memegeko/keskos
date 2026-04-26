@@ -90,7 +90,7 @@ json_lines() {
 }
 
 trim_line() {
-  local width="${1:-56}"
+  local width="${1:-72}"
   awk -v max="$width" '
     {
       line=$0
@@ -111,11 +111,11 @@ format_rate() {
   if (( bytes_per_second < 1024 )); then
     printf '%s B/s' "$bytes_per_second"
   elif (( bytes_per_second < 1048576 )); then
-    awk -v value="$bytes_per_second" 'BEGIN { printf "%.1f KiB/s", value / 1024 }'
+    awk -v value="$bytes_per_second" 'BEGIN { printf "%.0f KB/s", value / 1024 }'
   elif (( bytes_per_second < 1073741824 )); then
-    awk -v value="$bytes_per_second" 'BEGIN { printf "%.1f MiB/s", value / 1048576 }'
+    awk -v value="$bytes_per_second" 'BEGIN { printf "%.2f MB/s", value / 1048576 }'
   else
-    awk -v value="$bytes_per_second" 'BEGIN { printf "%.1f GiB/s", value / 1073741824 }'
+    awk -v value="$bytes_per_second" 'BEGIN { printf "%.2f GB/s", value / 1073741824 }'
   fi
 }
 
@@ -125,45 +125,121 @@ format_kib() {
   if (( kib < 1024 )); then
     printf '%s KiB' "$kib"
   elif (( kib < 1048576 )); then
-    awk -v value="$kib" 'BEGIN { printf "%.1f MiB", value / 1024 }'
+    awk -v value="$kib" 'BEGIN { printf "%.2f MiB", value / 1024 }'
   else
-    awk -v value="$kib" 'BEGIN { printf "%.1f GiB", value / 1048576 }'
+    awk -v value="$kib" 'BEGIN { printf "%.2f GiB", value / 1048576 }'
   fi
 }
 
-make_bar() {
-  local current="${1:-0}"
-  local max="${2:-100}"
-  local units="${3:-20}"
-  local filled=0
-  local empty=0
-  local bar=""
+title_case() {
+  local raw="${1:-}"
+  awk -v text="$raw" 'BEGIN {
+    text=tolower(text)
+    first=toupper(substr(text, 1, 1))
+    rest=substr(text, 2)
+    printf "%s%s", first, rest
+  }'
+}
 
-  if (( max > 0 )); then
-    filled=$(( current * units / max ))
+shell_display() {
+  local shell_bin shell_name version=""
+
+  shell_bin="${SHELL:-sh}"
+  shell_name="$(basename "$shell_bin")"
+
+  case "$shell_name" in
+    bash)
+      version="${BASH_VERSION%%(*}"
+      ;;
+    zsh)
+      version="$(zsh --version 2>/dev/null | awk '{print $2}' | head -n 1 || true)"
+      ;;
+    fish)
+      version="$(fish --version 2>/dev/null | awk '{print $3}' | head -n 1 || true)"
+      ;;
+    *)
+      version="$("$shell_bin" --version 2>/dev/null | head -n 1 | awk '{print $NF}' || true)"
+      ;;
+  esac
+
+  if [[ -n "$version" ]]; then
+    printf '%s %s\n' "$shell_name" "$version"
+  else
+    printf '%s\n' "$shell_name"
+  fi
+}
+
+pretty_session() {
+  local desktop session_type
+
+  desktop="${XDG_CURRENT_DESKTOP:-KDE Plasma}"
+  session_type="$(title_case "${XDG_SESSION_TYPE:-wayland}")"
+  printf '%s (%s)\n' "$desktop" "$session_type"
+}
+
+append_history_line() {
+  local history_line="${1:-}"
+  local sample="${2:-0}"
+  local limit="${3:-16}"
+  local -a values=()
+
+  if [[ -n "$history_line" ]]; then
+    read -r -a values <<< "$history_line"
   fi
 
-  if (( filled < 0 )); then
-    filled=0
-  fi
+  values+=("$sample")
 
-  if (( filled > units )); then
-    filled="$units"
-  fi
-
-  empty=$(( units - filled ))
-
-  while (( filled > 0 )); do
-    bar+="#"
-    filled=$(( filled - 1 ))
+  while (( ${#values[@]} > limit )); do
+    values=("${values[@]:1}")
   done
 
-  while (( empty > 0 )); do
-    bar+="."
-    empty=$(( empty - 1 ))
+  while (( ${#values[@]} < limit )); do
+    values=(0 "${values[@]}")
   done
 
-  printf '[%s]' "$bar"
+  if (( ${#values[@]} == 0 )); then
+    values=(0)
+  fi
+
+  printf '%s\n' "${values[*]}"
+}
+
+normalize_history_line() {
+  local history_line="${1:-0}"
+  local -a values=()
+  local max_value=1
+  local value
+
+  read -r -a values <<< "$history_line"
+
+  if (( ${#values[@]} == 0 )); then
+    values=(0)
+  fi
+
+  for value in "${values[@]}"; do
+    if (( value > max_value )); then
+      max_value="$value"
+    fi
+  done
+
+  printf '%s\n' "${values[@]}" \
+    | jq -Rsc --argjson max "$max_value" '
+        split("\n")
+        | map(select(length > 0) | tonumber)
+        | map(if $max > 0 then ((. / $max * 100) | round) else 0 end)
+      '
+}
+
+connection_type() {
+  local interface="${1:-lo}"
+
+  if [[ -d "/sys/class/net/${interface}/wireless" ]]; then
+    printf 'Wi-Fi\n'
+  elif [[ "$interface" == "lo" ]]; then
+    printf 'Loopback\n'
+  else
+    printf 'Wired\n'
+  fi
 }
 
 default_interface() {
@@ -237,8 +313,8 @@ print_system_status() {
 
   kernel="$(uname -r 2>/dev/null || printf 'unknown')"
   uptime="$(uptime -p 2>/dev/null | sed 's/^up //')"
-  shell_name="$(basename "${SHELL:-sh}")"
-  session_name="${XDG_CURRENT_DESKTOP:-KDE Plasma} / ${XDG_SESSION_TYPE:-wayland}"
+  shell_name="$(shell_display)"
+  session_name="$(pretty_session)"
 
   jq -nc \
     --arg os "$pretty_name" \
@@ -250,13 +326,14 @@ print_system_status() {
 }
 
 print_network() {
-  local interface status local_ip gateway down up
+  local interface operstate local_ip gateway down up status connection
+  local history_file history_down history_up down_line up_line down_json up_json
 
   interface="$(default_interface)"
-  status="offline"
+  operstate="down"
 
   if [[ -r "/sys/class/net/${interface}/operstate" ]]; then
-    status="$(<"/sys/class/net/${interface}/operstate")"
+    operstate="$(<"/sys/class/net/${interface}/operstate")"
   fi
 
   local_ip="$(ip -4 addr show dev "$interface" 2>/dev/null | awk '/inet / { print $2; exit }')"
@@ -264,41 +341,77 @@ print_network() {
 
   read -r down up < <(network_speeds "$interface")
 
+  history_file="${CACHE_DIR}/qs-net-${interface}.history"
+  if [[ -r "$history_file" ]]; then
+    history_down="$(sed -n '1p' "$history_file")"
+    history_up="$(sed -n '2p' "$history_file")"
+  fi
+
+  down_line="$(append_history_line "${history_down:-}" "$down" 16)"
+  up_line="$(append_history_line "${history_up:-}" "$up" 16)"
+  printf '%s\n%s\n' "$down_line" "$up_line" >"$history_file"
+
+  down_json="$(normalize_history_line "$down_line")"
+  up_json="$(normalize_history_line "$up_line")"
+
+  connection="$(connection_type "$interface")"
+  if [[ -n "${local_ip:-}" && "$operstate" == "up" ]]; then
+    status="ONLINE"
+  else
+    status="OFFLINE"
+    if [[ "$interface" != "lo" ]]; then
+      connection="Disconnected"
+    fi
+  fi
+
   jq -nc \
     --arg interface "$interface" \
+    --arg connection "$connection" \
     --arg status "$status" \
     --arg local_ip "${local_ip:-n/a}" \
     --arg gateway "${gateway:-n/a}" \
     --arg down "$(format_rate "$down")" \
     --arg up "$(format_rate "$up")" \
-    '{interface:$interface,status:$status,local_ip:$local_ip,gateway:$gateway,down:$down,up:$up}'
+    --argjson download_history "$down_json" \
+    --argjson upload_history "$up_json" \
+    '{interface:$interface,connection:$connection,status:$status,local_ip:$local_ip,gateway:$gateway,down:$down,up:$up,download_history:$download_history,upload_history:$upload_history}'
 }
 
 print_system_log() {
   local fallback
 
   if command -v journalctl >/dev/null 2>&1; then
-    if journalctl -n 8 --no-pager >/dev/null 2>&1; then
-      journalctl -n 8 --no-pager 2>/dev/null \
-        | sed 's/^[[:space:]]*//' \
+    if journalctl -n 8 --no-pager -o short-iso >/dev/null 2>&1; then
+      journalctl -n 8 --no-pager -o short-iso 2>/dev/null \
         | tail -n 8 \
-        | trim_line 56 \
+        | awk '
+            {
+              timestamp=$1
+              sub(/^.*T/, "", timestamp)
+              sub(/\+.*/, "", timestamp)
+              $1=""
+              $2=""
+              sub(/^  */, "", $0)
+              print "[" timestamp "] " $0
+            }
+          ' \
+        | trim_line 78 \
         | json_lines
       return 0
     fi
   fi
 
-  fallback=$'BOOTSTRAP CHANNEL READY\nDISPLAY BUS LINKED\nHUD OVERLAY SYNCED\nPROFILE LAYER ONLINE\nPLASMA SESSION STABLE\nNETWORK WATCH ACTIVE\nMEMORY TELEMETRY OK\nCOMMAND LAYER IDLE'
+  fallback=$'[12:45:10] systemd[1]: Started Session 3 of user nih.\n[12:45:10] kdeinit5[733]: Starting KDE Plasma\n[12:45:11] kwin_wayland[1021]: Compositor started\n[12:45:12] NetworkManager[620]: Network is online\n[12:45:13] systemd[1]: Reached target Graphical Interface\n[12:45:14] keskos[1]: Hud interface initialized\n[12:45:15] keskos[1]: All systems operational\n[12:45:16] keskos[1]: Awaiting input...'
   printf '%s\n' "$fallback" | json_lines
 }
 
 print_system_profile() {
   local host_name user_name machine_name session_name uptime_text
 
-  host_name="$(hostname 2>/dev/null || printf 'kesk-node')"
+  host_name="$(hostname 2>/dev/null || printf 'kesk-node-01')"
   user_name="$(id -un 2>/dev/null || printf '%s' "${USER:-user}")"
   machine_name="$(uname -m 2>/dev/null || printf 'unknown')"
-  session_name="${XDG_CURRENT_DESKTOP:-KDE Plasma} / ${XDG_SESSION_TYPE:-wayland}"
+  session_name="$(pretty_session)"
   uptime_text="$(uptime -p 2>/dev/null | sed 's/^up //')"
 
   jq -nc \
@@ -307,11 +420,14 @@ print_system_profile() {
     --arg machine "$machine_name" \
     --arg session "$session_name" \
     --arg uptime "${uptime_text:-n/a}" \
-    '{host:$host,user:$user,machine:$machine,session:$session,uptime:$uptime}'
+    --arg node "KESK-01" \
+    --arg access "GRANTED" \
+    --arg clearance "USER" \
+    '{host:$host,user:$user,machine:$machine,session:$session,uptime:$uptime,node:$node,access:$access,clearance:$clearance}'
 }
 
 print_memory() {
-  local total_kib available_kib used_kib percent
+  local total_kib available_kib used_kib percent segments_filled
 
   total_kib="$(awk '/MemTotal:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
   available_kib="$(awk '/MemAvailable:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
@@ -323,12 +439,19 @@ print_memory() {
     percent=0
   fi
 
+  segments_filled=$(( (percent * 28 + 99) / 100 ))
+  if (( segments_filled > 28 )); then
+    segments_filled=28
+  fi
+
   jq -nc \
     --arg total "$(format_kib "$total_kib")" \
     --arg used "$(format_kib "$used_kib")" \
+    --arg free "$(format_kib "$available_kib")" \
     --arg percent "${percent}%" \
-    --arg bar "$(make_bar "$used_kib" "$total_kib" 20)" \
-    '{total:$total,used:$used,percent:$percent,bar:$bar}'
+    --argjson percent_value "$percent" \
+    --argjson segments_filled "$segments_filled" \
+    '{total:$total,used:$used,free:$free,percent:$percent,percent_value:$percent_value,segments_filled:$segments_filled}'
 }
 
 case "$SECTION" in
