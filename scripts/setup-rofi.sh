@@ -7,127 +7,113 @@ log() {
   printf '[setup-rofi] %s\n' "$1"
 }
 
-mkdir -p "$HOME/.config/rofi" "$HOME/.local/bin" "$HOME/.local/share/applications"
+install_backend() {
+  local source_root="$REPO_DIR/launcher"
+  local target_root="$HOME/.local/share/keskos/launcher"
+  local file_path=""
+  local relative_path=""
 
-install -m 644 \
-  "$REPO_DIR/configs/rofi/keskos.rasi" \
-  "$HOME/.config/rofi/keskos.rasi"
+  mkdir -p "$target_root"
+  rm -rf "$target_root/kesk_runner"
 
-# Build the launcher as a user-local helper so the desktop entry can stay simple.
-cat >"$HOME/.local/bin/keskos-launcher" <<'EOF'
+  while IFS= read -r file_path; do
+    relative_path="${file_path#"$source_root"/}"
+    install -Dm644 "$file_path" "$target_root/$relative_path"
+  done < <(find "$source_root" -type f -name '*.py' | sort)
+}
+
+install_wrappers() {
+  cat >"$HOME/.local/bin/keskos-launcher" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 THEME="${HOME}/.config/rofi/keskos.rasi"
-PROMPT='KESK >'
+CONFIG="${HOME}/.config/rofi/keskos-launcher-config.rasi"
+LAUNCHER_ROOT="${HOME}/.local/share/keskos/launcher"
+SCRIPT_BIN="${HOME}/.local/bin/keskos-launcher-script"
+MODE="main"
+ACTION=""
 
-notify_or_print() {
-  local message="$1"
-  if command -v notify-send >/dev/null 2>&1; then
-    notify-send "keskos" "$message"
-  else
-    printf 'keskos: %s\n' "$message" >&2
-  fi
-}
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mode)
+      MODE="${2:-main}"
+      shift 2
+      ;;
+    --action)
+      ACTION="${2:-}"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
-run_cmd() {
-  if "$@"; then
-    return 0
-  fi
+export PYTHONPATH="${LAUNCHER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 
-  notify_or_print "Failed to run: $*"
-  return 1
-}
-
-run_if_exists() {
-  local command_name="$1"
-  shift
-
-  if ! command -v "$command_name" >/dev/null 2>&1; then
-    notify_or_print "Missing command: $command_name"
-    return 1
-  fi
-
-  run_cmd "$command_name" "$@"
-}
-
-run_logout() {
-  if command -v qdbus6 >/dev/null 2>&1; then
-    qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout >/dev/null 2>&1 && return 0
-    qdbus6 org.kde.ksmserver /KSMServer logout 0 0 0 >/dev/null 2>&1 && return 0
-  fi
-
-  if command -v qdbus >/dev/null 2>&1; then
-    qdbus org.kde.Shutdown /Shutdown org.kde.Shutdown.logout >/dev/null 2>&1 && return 0
-    qdbus org.kde.ksmserver /KSMServer logout 0 0 0 >/dev/null 2>&1 && return 0
-  fi
-
-  notify_or_print "No supported KDE logout command was found."
-  return 1
-}
-
-launch_drun() {
-  if ! command -v rofi >/dev/null 2>&1; then
-    notify_or_print "Missing command: rofi"
-    return 1
-  fi
-
-  rofi -show drun -theme "$THEME" -p "$PROMPT" || true
-}
-
-if ! command -v rofi >/dev/null 2>&1; then
-  notify_or_print "Missing command: rofi"
-  exit 1
+if [[ -n "$ACTION" ]]; then
+  exec python3 -m kesk_runner action "$ACTION"
 fi
 
-choices=$'terminal\nfiles\nbrowser\nsettings\napp search\nfastfetch\nlogout\nreboot\nshutdown'
-
-selection="$(
-  rofi \
-    -dmenu \
-    -i \
-    -p "$PROMPT" \
-    -theme "$THEME" \
-    <<<"$choices" || true
-)"
-
-[[ -z "${selection}" ]] && exit 0
-
-case "$selection" in
-  terminal)
-    run_if_exists konsole
-    ;;
-  files)
-    run_if_exists dolphin
-    ;;
-  browser)
-    run_if_exists xdg-open "https://google.com"
-    ;;
-  settings)
-    run_if_exists systemsettings
-    ;;
-  "app search")
-    launch_drun
-    ;;
-  fastfetch)
-    run_if_exists konsole -e fastfetch
-    ;;
-  logout)
-    run_logout
-    ;;
-  reboot)
-    run_if_exists systemctl reboot
-    ;;
-  shutdown)
-    run_if_exists systemctl poweroff
+case "$MODE" in
+  main|apps|windows|settings|power)
     ;;
   *)
-    notify_or_print "Unknown selection: $selection"
-    exit 1
+    MODE="main"
     ;;
 esac
+
+(
+  python3 -m kesk_runner warm --sync-files >/dev/null 2>&1
+) &
+
+ROFI_MODES="kesk-main:${SCRIPT_BIN} main,kesk-apps:${SCRIPT_BIN} apps,kesk-windows:${SCRIPT_BIN} windows,kesk-settings:${SCRIPT_BIN} settings,kesk-power:${SCRIPT_BIN} power"
+SHOW_MODE="kesk-${MODE}"
+
+exec rofi \
+  -show "$SHOW_MODE" \
+  -modes "$ROFI_MODES" \
+  -config "$CONFIG" \
+  -theme "$THEME" \
+  -i \
+  -no-sort \
+  -matching normal
 EOF
 
-chmod +x "$HOME/.local/bin/keskos-launcher"
+  cat >"$HOME/.local/bin/keskos-launcher-script" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
 
-log "Installed rofi theme and launcher."
+MODE="${1:-main}"
+LAUNCHER_ROOT="${HOME}/.local/share/keskos/launcher"
+shift || true
+
+export PYTHONPATH="${LAUNCHER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+exec python3 -m kesk_runner script --mode "$MODE" --entry-text "${*:-}"
+EOF
+
+  chmod +x "$HOME/.local/bin/keskos-launcher" "$HOME/.local/bin/keskos-launcher-script"
+}
+
+main() {
+  mkdir -p "$HOME/.config/rofi" "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/keskos/launcher"
+
+  install -m 644 \
+    "$REPO_DIR/configs/rofi/keskos.rasi" \
+    "$HOME/.config/rofi/keskos.rasi"
+
+  install -m 644 \
+    "$REPO_DIR/configs/rofi/keskos-launcher-config.rasi" \
+    "$HOME/.config/rofi/keskos-launcher-config.rasi"
+
+  install_backend
+  install_wrappers
+
+  PYTHONPATH="$HOME/.local/share/keskos/launcher${PYTHONPATH:+:${PYTHONPATH}}" \
+    python3 -m kesk_runner warm --sync-files >/dev/null 2>&1 || true
+
+  log "Installed the rofi theme, launcher config, Kesk runner backend, and launcher wrappers."
+}
+
+main "$@"

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EWW_REF="${KESKOS_EWW_REF:-v0.6.0}"
+INSTALL_WIDGETS_ANSWER="${KESKOS_INSTALL_WIDGETS:-}"
+INSTALL_LIBREWOLF_ANSWER="${KESKOS_INSTALL_LIBREWOLF:-}"
 
 log() {
   printf '[keskos] %s\n' "$1"
@@ -31,42 +32,31 @@ require_arch() {
   fi
 }
 
-install_packages() {
+install_base_packages() {
   local packages=(
     rofi
     konsole
     dolphin
     fastfetch
-    jq
-    lm_sensors
-    procps-ng
-    iproute2
-    git
-    cargo
-    base-devel
-    gtk3
-    gtk-layer-shell
-    pango
-    gdk-pixbuf2
-    libdbusmenu-gtk3
-    cairo
-    glib2
-    gcc-libs
+    python
+    python-pyxdg
     ttf-jetbrains-mono-nerd
+    wl-clipboard
+    xclip
+    wmctrl
   )
 
   if ! command -v sudo >/dev/null 2>&1; then
     fail "sudo is required to install packages."
   fi
 
-  log "Installing runtime and build packages with pacman..."
+  log "Installing base packages with pacman..."
   sudo pacman -S --needed "${packages[@]}"
 }
 
 prepare_directories() {
   log "Creating user-local directories..."
   mkdir -p \
-    "$HOME/.config/eww/widgets" \
     "$HOME/.config/rofi" \
     "$HOME/.config/autostart" \
     "$HOME/.local/bin" \
@@ -74,6 +64,46 @@ prepare_directories() {
     "$HOME/.local/share/color-schemes" \
     "$HOME/.local/share/keskos/assets" \
     "$HOME/.cache/keskos"
+}
+
+prompt_widget_install() {
+  local answer=""
+
+  if [[ -n "$INSTALL_WIDGETS_ANSWER" ]]; then
+    answer="$INSTALL_WIDGETS_ANSWER"
+  else
+    echo "Install KeskOS HUD widgets? (y/n)"
+    read -r answer
+  fi
+
+  case "${answer,,}" in
+    y|yes)
+      INSTALL_WIDGETS_ANSWER="y"
+      ;;
+    *)
+      INSTALL_WIDGETS_ANSWER="n"
+      ;;
+  esac
+}
+
+prompt_librewolf_install() {
+  local answer=""
+
+  if [[ -n "$INSTALL_LIBREWOLF_ANSWER" ]]; then
+    answer="$INSTALL_LIBREWOLF_ANSWER"
+  else
+    printf 'Do you want to install the Kesk OS themed LibreWolf browser? [y/N]\n'
+    read -r answer
+  fi
+
+  case "${answer,,}" in
+    y|yes)
+      INSTALL_LIBREWOLF_ANSWER="y"
+      ;;
+    *)
+      INSTALL_LIBREWOLF_ANSWER="n"
+      ;;
+  esac
 }
 
 restart_plasma() {
@@ -96,11 +126,24 @@ restart_plasma() {
   nohup plasmashell >/dev/null 2>&1 &
 }
 
-start_hud() {
-  if [[ -x "$HOME/.local/bin/keskos-start-eww" ]]; then
-    log "Starting the KESKOS Eww HUD..."
-    nohup "$HOME/.local/bin/keskos-start-eww" >/dev/null 2>&1 &
+start_quickshell_hud() {
+  if [[ "$INSTALL_WIDGETS_ANSWER" != "y" ]]; then
+    return
   fi
+
+  if [[ -x "$HOME/.local/bin/keskos-start-quickshell" ]]; then
+    log "Starting the KeskOS Quickshell HUD..."
+    nohup "$HOME/.local/bin/keskos-start-quickshell" >/dev/null 2>&1 &
+  fi
+}
+
+stop_old_widget_processes() {
+  if [[ "$INSTALL_WIDGETS_ANSWER" == "y" ]]; then
+    return
+  fi
+
+  pkill -x quickshell >/dev/null 2>&1 || true
+  pkill -x eww >/dev/null 2>&1 || true
 }
 
 main() {
@@ -110,7 +153,12 @@ main() {
 
   require_arch
   prepare_directories
-  install_packages
+  install_base_packages
+  prompt_widget_install
+  prompt_librewolf_install
+
+  log "Installing optional window-control helpers..."
+  bash "$SCRIPT_DIR/scripts/setup-window-tools.sh" "$SCRIPT_DIR"
 
   log "Installing rofi launcher assets..."
   bash "$SCRIPT_DIR/scripts/setup-rofi.sh" "$SCRIPT_DIR"
@@ -118,11 +166,24 @@ main() {
   log "Installing wallpaper assets..."
   bash "$SCRIPT_DIR/scripts/setup-wallpaper.sh" "$SCRIPT_DIR"
 
-  log "Installing Eww Wayland HUD from source (${EWW_REF})..."
-  bash "$SCRIPT_DIR/scripts/setup-eww.sh" "$SCRIPT_DIR"
+  if [[ "$INSTALL_WIDGETS_ANSWER" == "y" ]]; then
+    log "Installing the optional Quickshell HUD..."
+    bash "$SCRIPT_DIR/scripts/setup-quickshell.sh" "$SCRIPT_DIR"
+  else
+    log "Skipping widget installation and keeping minimal mode."
+  fi
+
+  if [[ "$INSTALL_LIBREWOLF_ANSWER" == "y" ]]; then
+    log "Installing the optional Kesk OS LibreWolf browser layer..."
+    if ! bash "$SCRIPT_DIR/scripts/setup-librewolf.sh" "$SCRIPT_DIR"; then
+      warn "LibreWolf setup did not complete cleanly. Continuing with the rest of the install."
+    fi
+  else
+    log "Skipping LibreWolf installation and theming."
+  fi
 
   log "Installing autostart entries..."
-  bash "$SCRIPT_DIR/scripts/setup-autostart.sh" "$SCRIPT_DIR"
+  bash "$SCRIPT_DIR/scripts/setup-autostart.sh" "$SCRIPT_DIR" "$INSTALL_WIDGETS_ANSWER"
 
   log "Installing the launcher shortcut..."
   bash "$SCRIPT_DIR/scripts/setup-shortcuts.sh" "$SCRIPT_DIR"
@@ -131,9 +192,15 @@ main() {
   bash "$SCRIPT_DIR/scripts/apply-kde.sh" "$SCRIPT_DIR"
 
   restart_plasma
-  start_hud
+  stop_old_widget_processes
+  start_quickshell_hud
 
-  printf '\nKESKOS EWW HUD installed. Log out and back in.\n'
+  printf '\nKESKOS setup complete.\n'
+  if [[ "$INSTALL_WIDGETS_ANSWER" == "y" ]]; then
+    printf 'If widgets enabled: Quickshell HUD active.\n'
+  else
+    printf 'If disabled: running minimal mode.\n'
+  fi
 }
 
 main "$@"

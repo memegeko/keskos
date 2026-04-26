@@ -113,8 +113,6 @@ for (var i = 0; i < allDesktops.length; i++) {
 set_panel_autohide() {
   local script
 
-  # Best-effort Plasma panel scripting. If this fails, the README documents the
-  # safe manual path instead of deleting or rebuilding panels.
   script='for (var i = 0; i < panelIds.length; i++) {
   try {
     var panel = panelById(panelIds[i]);
@@ -136,6 +134,67 @@ set_panel_autohide() {
   return 1
 }
 
+delete_panels() {
+  local script
+
+  # Plasma scripting docs expose Applet.remove() on panel objects. We keep a
+  # backup of plasma-org.kde.plasma.desktop-appletsrc before using it.
+  script='var ids = panelIds.slice();
+for (var i = 0; i < ids.length; i++) {
+  try {
+    var panel = panelById(ids[i]);
+    if (panel) {
+      panel.remove();
+    }
+  } catch (error) {
+  }
+}'
+
+  if command -v qdbus6 >/dev/null 2>&1; then
+    qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 && return 0
+  fi
+
+  if command -v qdbus >/dev/null 2>&1; then
+    qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 && return 0
+  fi
+
+  return 1
+}
+
+configure_panels() {
+  local panel_mode="${KESKOS_PANEL_MODE:-delete}"
+
+  case "${panel_mode,,}" in
+    autohide|hide)
+      if set_panel_autohide; then
+        log "Switched existing Plasma panels to auto-hide."
+        return 0
+      fi
+      warn "Unable to switch panels to auto-hide automatically."
+      return 1
+      ;;
+    delete|remove|none|"")
+      if delete_panels; then
+        log "Removed existing Plasma panels. A backup of plasma-org.kde.plasma.desktop-appletsrc was kept."
+        return 0
+      fi
+      warn "Unable to delete Plasma panels automatically. Falling back to auto-hide."
+      set_panel_autohide
+      return $?
+      ;;
+    *)
+      warn "Unknown KESKOS_PANEL_MODE='$panel_mode'. Using delete mode."
+      if delete_panels; then
+        log "Removed existing Plasma panels. A backup of plasma-org.kde.plasma.desktop-appletsrc was kept."
+        return 0
+      fi
+      warn "Unable to delete Plasma panels automatically. Falling back to auto-hide."
+      set_panel_autohide
+      return $?
+      ;;
+  esac
+}
+
 main() {
   backup_file "$HOME/.config/kdeglobals"
   backup_file "$HOME/.config/kwinrc"
@@ -149,8 +208,8 @@ main() {
   apply_fonts
   set_black_root
 
-  if ! set_panel_autohide; then
-    warn "Unable to switch panels to auto-hide automatically. Use the manual panel steps from the README if needed."
+  if ! configure_panels; then
+    warn "Unable to update panels automatically. Use the restore notes from the README if needed."
   fi
 
   if command -v qdbus6 >/dev/null 2>&1; then

@@ -1,0 +1,34 @@
+{
+  "policies": {
+    "DontCheckDefaultBrowser": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "Homepage": {
+      "URL": "file:///usr/share/kesk/browser-home/index.html",
+      "StartPage": "homepage",
+      "Locked": false
+    },
+    "Preferences": {
+      "browser.startup.homepage": {
+        "Value": "file:///usr/share/kesk/browser-home/index.html",
+        "Status": "default"
+      },
+      "browser.startup.page": {
+        "Value": 1,
+        "Status": "default"
+      },
+      "toolkit.legacyUserProfileCustomizations.stylesheets": {
+        "Value": true,
+        "Status": "default"
+      },
+      "browser.aboutwelcome.enabled": {
+        "Value": false,
+        "Status": "default"
+      },
+      "browser.shell.checkDefaultBrowser": {
+        "Value": false,
+        "Status": "default"
+      }
+    }
+  }
+}

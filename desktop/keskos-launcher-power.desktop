@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KESKOS Power
+Comment=Open the KESKOS power mode
+Exec=sh -lc "~/.local/bin/keskos-launcher --mode power"
+Icon=system-shutdown
+Terminal=false
+StartupNotify=false
+Categories=System;
+X-KDE-Shortcuts=Meta+P

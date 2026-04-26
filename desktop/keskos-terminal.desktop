@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KESKOS Terminal
+Comment=Open a terminal from KeskOS
+Exec=sh -lc "~/.local/bin/keskos-launcher --action terminal"
+Icon=utilities-terminal
+Terminal=false
+StartupNotify=false
+Categories=System;Utility;
+X-KDE-Shortcuts=Meta+T,Meta+Return

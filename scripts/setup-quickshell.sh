@@ -1,50 +1,65 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_DIR="${1:?usage: setup-eww.sh /path/to/repo}"
-EWW_REF="${KESKOS_EWW_REF:-v0.6.0}"
+REPO_DIR="${1:?usage: setup-quickshell.sh /path/to/repo}"
+QUICKSHELL_REF="${KESKOS_QUICKSHELL_REF:-master}"
 
 log() {
-  printf '[setup-eww] %s\n' "$1"
+  printf '[setup-quickshell] %s\n' "$1"
 }
 
 warn() {
-  printf '[setup-eww] warning: %s\n' "$1" >&2
+  printf '[setup-quickshell] warning: %s\n' "$1" >&2
 }
 
 fail() {
-  printf '[setup-eww] error: %s\n' "$1" >&2
+  printf '[setup-quickshell] error: %s\n' "$1" >&2
   exit 1
 }
 
-install_eww_config() {
-  mkdir -p "$HOME/.config/eww/widgets" "$HOME/.local/bin"
+backup_file() {
+  local file_path="$1"
 
-  install -m 644 \
-    "$REPO_DIR/configs/eww/eww.yuck" \
-    "$HOME/.config/eww/eww.yuck"
+  if [[ -f "$file_path" && ! -f "${file_path}.keskos.bak" ]]; then
+    cp "$file_path" "${file_path}.keskos.bak"
+  fi
+}
 
-  install -m 644 \
-    "$REPO_DIR/configs/eww/eww.scss" \
-    "$HOME/.config/eww/eww.scss"
+install_quickshell_dependencies() {
+  local packages=(
+    jq
+    lm_sensors
+    procps-ng
+    iproute2
+    qt6-base
+    qt6-declarative
+    qt6-wayland
+    qt6-5compat
+    qt6-svg
+    qt6-shadertools
+    git
+    base-devel
+    cmake
+    ninja
+    pkgconf
+    cli11
+    libdrm
+    wayland
+    wayland-protocols
+    vulkan-headers
+    spirv-tools
+  )
 
-  for widget_file in "$REPO_DIR"/configs/eww/widgets/*.yuck; do
-    install -m 644 \
-      "$widget_file" \
-      "$HOME/.config/eww/widgets/$(basename "$widget_file")"
-  done
+  if ! command -v sudo >/dev/null 2>&1; then
+    fail "sudo is required to install Quickshell dependencies."
+  fi
 
-  install -m 755 \
-    "$REPO_DIR/scripts/start-eww.sh" \
-    "$HOME/.local/bin/keskos-start-eww"
-
-  install -m 755 \
-    "$REPO_DIR/scripts/select-resolution.sh" \
-    "$HOME/.local/bin/keskos-select-resolution"
+  log "Installing Quickshell runtime and build dependencies..."
+  sudo pacman -S --needed "${packages[@]}"
 }
 
 write_data_helper() {
-  cat >"$HOME/.local/bin/keskos-eww-data" <<'EOF'
+  cat >"$HOME/.local/bin/keskos-quickshell-data" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -57,7 +72,7 @@ json_lines() {
 }
 
 trim_line() {
-  local width="${1:-54}"
+  local width="${1:-56}"
   awk -v max="$width" '
     {
       line=$0
@@ -150,7 +165,7 @@ network_speeds() {
   local interface="$1"
   local rx_file="/sys/class/net/${interface}/statistics/rx_bytes"
   local tx_file="/sys/class/net/${interface}/statistics/tx_bytes"
-  local state_file="${CACHE_DIR}/eww-net-${interface}.state"
+  local state_file="${CACHE_DIR}/qs-net-${interface}.state"
   local now rx tx last_now last_rx last_tx down up delta
 
   if [[ ! -r "$rx_file" || ! -r "$tx_file" ]]; then
@@ -194,7 +209,7 @@ network_speeds() {
 
 print_system_status() {
   local pretty_name="Arch Linux"
-  local kernel uptime shell_name session_name wm_name
+  local kernel uptime shell_name session_name
 
   if [[ -r /etc/os-release ]]; then
     # shellcheck disable=SC1091
@@ -205,8 +220,7 @@ print_system_status() {
   kernel="$(uname -r 2>/dev/null || printf 'unknown')"
   uptime="$(uptime -p 2>/dev/null | sed 's/^up //')"
   shell_name="$(basename "${SHELL:-sh}")"
-  session_name="${XDG_CURRENT_DESKTOP:-KDE Plasma}"
-  wm_name="KWin / ${XDG_SESSION_TYPE:-wayland}"
+  session_name="${XDG_CURRENT_DESKTOP:-KDE Plasma} / ${XDG_SESSION_TYPE:-wayland}"
 
   jq -nc \
     --arg os "$pretty_name" \
@@ -214,12 +228,11 @@ print_system_status() {
     --arg uptime "${uptime:-n/a}" \
     --arg shell "$shell_name" \
     --arg session "$session_name" \
-    --arg wm "$wm_name" \
-    '{os:$os,kernel:$kernel,uptime:$uptime,shell:$shell,session:$session,wm:$wm}'
+    '{os:$os,kernel:$kernel,uptime:$uptime,shell:$shell,session:$session}'
 }
 
 print_network() {
-  local interface status local_ip down up
+  local interface status local_ip gateway down up
 
   interface="$(default_interface)"
   status="offline"
@@ -228,9 +241,8 @@ print_network() {
     status="$(<"/sys/class/net/${interface}/operstate")"
   fi
 
-  local_ip="$(
-    ip -4 addr show dev "$interface" 2>/dev/null | awk '/inet / { print $2; exit }'
-  )"
+  local_ip="$(ip -4 addr show dev "$interface" 2>/dev/null | awk '/inet / { print $2; exit }')"
+  gateway="$(ip route show default 2>/dev/null | awk 'NR == 1 { print $3; exit }')"
 
   read -r down up < <(network_speeds "$interface")
 
@@ -238,9 +250,10 @@ print_network() {
     --arg interface "$interface" \
     --arg status "$status" \
     --arg local_ip "${local_ip:-n/a}" \
+    --arg gateway "${gateway:-n/a}" \
     --arg down "$(format_rate "$down")" \
     --arg up "$(format_rate "$up")" \
-    '{interface:$interface,status:$status,local_ip:$local_ip,down:$down,up:$up}'
+    '{interface:$interface,status:$status,local_ip:$local_ip,gateway:$gateway,down:$down,up:$up}'
 }
 
 print_system_log() {
@@ -251,13 +264,13 @@ print_system_log() {
       journalctl -n 8 --no-pager 2>/dev/null \
         | sed 's/^[[:space:]]*//' \
         | tail -n 8 \
-        | trim_line 54 \
+        | trim_line 56 \
         | json_lines
       return 0
     fi
   fi
 
-  fallback=$'BOOTSTRAP CHANNEL READY\nDISPLAY BUS LINKED\nSYSTEM PROFILE LOADED\nWAYLAND HUD SYNCED\nPLASMA SESSION STABLE\nROFI COMMAND LAYER IDLE\nMEMORY TELEMETRY NOMINAL\nNETWORK WATCH ACTIVE'
+  fallback=$'BOOTSTRAP CHANNEL READY\nDISPLAY BUS LINKED\nHUD OVERLAY SYNCED\nPROFILE LAYER ONLINE\nPLASMA SESSION STABLE\nNETWORK WATCH ACTIVE\nMEMORY TELEMETRY OK\nCOMMAND LAYER IDLE'
   printf '%s\n' "$fallback" | json_lines
 }
 
@@ -276,9 +289,7 @@ print_system_profile() {
     --arg machine "$machine_name" \
     --arg session "$session_name" \
     --arg uptime "${uptime_text:-n/a}" \
-    --arg node "KESK-01" \
-    --arg access "GRANTED" \
-    '{host:$host,user:$user,machine:$machine,session:$session,uptime:$uptime,node:$node,access:$access}'
+    '{host:$host,user:$user,machine:$machine,session:$session,uptime:$uptime}'
 }
 
 print_memory() {
@@ -324,47 +335,92 @@ case "$SECTION" in
 esac
 EOF
 
-  chmod +x "$HOME/.local/bin/keskos-eww-data"
+  chmod +x "$HOME/.local/bin/keskos-quickshell-data"
 }
 
-cleanup_conky_state() {
-  rm -rf "$HOME/.config/conky"
-  rm -f "$HOME/.config/autostart/keskos-conky.desktop"
-  rm -f "$HOME/.local/bin/keskos-start-conky"
-  rm -f "$HOME/.local/bin/keskos-conky-block"
-  rm -f "$HOME/.local/bin/keskos-select-resolution-profile"
-  pkill -x conky >/dev/null 2>&1 || true
+install_quickshell_config() {
+  mkdir -p "$HOME/.config/quickshell/widgets" "$HOME/.local/bin"
+
+  backup_file "$HOME/.config/quickshell/main.qml"
+  install -m 644 \
+    "$REPO_DIR/configs/quickshell/main.qml" \
+    "$HOME/.config/quickshell/main.qml"
+
+  for widget_file in "$REPO_DIR"/configs/quickshell/widgets/*.qml; do
+    backup_file "$HOME/.config/quickshell/widgets/$(basename "$widget_file")"
+    install -m 644 \
+      "$widget_file" \
+      "$HOME/.config/quickshell/widgets/$(basename "$widget_file")"
+  done
+
+  install -m 755 \
+    "$REPO_DIR/scripts/start-quickshell.sh" \
+    "$HOME/.local/bin/keskos-start-quickshell"
+
+  install -m 755 \
+    "$REPO_DIR/scripts/select-resolution.sh" \
+    "$HOME/.local/bin/keskos-select-resolution"
 }
 
-build_eww_from_source() {
-  local src_dir="$HOME/.cache/keskos/eww-src"
+cleanup_old_widget_state() {
+  rm -rf "$HOME/.config/eww"
+  rm -f "$HOME/.config/autostart/keskos-eww.desktop"
+  rm -f "$HOME/.local/bin/keskos-start-eww"
+  rm -f "$HOME/.local/bin/keskos-eww-data"
+  pkill -x eww >/dev/null 2>&1 || true
+}
 
-  if [[ -x "$HOME/.local/bin/eww" && "${KESKOS_REBUILD_EWW:-0}" != "1" ]]; then
-    log "Keeping the existing local eww binary at $HOME/.local/bin/eww."
+build_quickshell_from_source() {
+  local src_dir="$HOME/.cache/keskos/quickshell-src"
+
+  if command -v quickshell >/dev/null 2>&1 && [[ "${KESKOS_REBUILD_QUICKSHELL:-0}" != "1" ]]; then
+    log "Keeping the existing system quickshell binary at $(command -v quickshell)."
+    return 0
+  fi
+
+  if [[ -x "$HOME/.local/bin/quickshell" && "${KESKOS_REBUILD_QUICKSHELL:-0}" != "1" ]]; then
+    log "Keeping the existing local quickshell binary at $HOME/.local/bin/quickshell."
     return 0
   fi
 
   rm -rf "$src_dir"
 
-  log "Cloning eww ${EWW_REF} from the official repository..."
-  git clone --branch "$EWW_REF" --depth 1 https://github.com/elkowar/eww "$src_dir"
+  log "Cloning quickshell ${QUICKSHELL_REF} from the official repository..."
+  git clone --branch "$QUICKSHELL_REF" --depth 1 https://git.outfoxxed.me/outfoxxed/quickshell "$src_dir"
 
-  log "Building eww with Wayland support..."
-  (
-    cd "$src_dir"
-    cargo build --release --no-default-features --features=wayland
-  )
+  log "Building quickshell with minimal Wayland layershell support..."
+  cmake -GNinja -S "$src_dir" -B "$src_dir/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
+    -DDISTRIBUTOR="keskos" \
+    -DCRASH_HANDLER=OFF \
+    -DUSE_JEMALLOC=OFF \
+    -DWAYLAND=ON \
+    -DWAYLAND_WLR_LAYERSHELL=ON \
+    -DWAYLAND_SESSION_LOCK=OFF \
+    -DWAYLAND_TOPLEVEL_MANAGEMENT=OFF \
+    -DSCREENCOPY=OFF \
+    -DX11=OFF \
+    -DSERVICE_PIPEWIRE=OFF \
+    -DSERVICE_STATUS_NOTIFIER=OFF \
+    -DSERVICE_MPRIS=OFF \
+    -DSERVICE_PAM=OFF \
+    -DSERVICE_POLKIT=OFF \
+    -DHYPRLAND=OFF \
+    -DI3=OFF >/dev/null
 
-  install -m 755 "$src_dir/target/release/eww" "$HOME/.local/bin/eww"
-  log "Installed the locally built eww binary to $HOME/.local/bin/eww."
+  cmake --build "$src_dir/build"
+  cmake --install "$src_dir/build"
+  log "Installed quickshell to $HOME/.local/bin/quickshell."
 }
 
 main() {
-  install_eww_config
+  install_quickshell_dependencies
+  install_quickshell_config
   write_data_helper
-  cleanup_conky_state
-  build_eww_from_source
-  log "Installed the Eww HUD configuration and startup helpers."
+  cleanup_old_widget_state
+  build_quickshell_from_source
+  log "Installed the Quickshell HUD configuration and startup helpers."
 }
 
 main "$@"

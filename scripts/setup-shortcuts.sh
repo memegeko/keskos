@@ -56,34 +56,93 @@ cleanup_legacy_keskos_bindings() {
   rm -f "$HOME/.local/bin/keskos-dispatch"
   rm -f "$HOME/.local/share/applications"/keskos-dispatch-*.desktop
 
-  # Clear any previous modifier-only Meta binding so the launcher stays on Meta+K.
+  # Clear any stale modifier-only launcher binding before we re-register it.
   "$kwriteconfig_bin" \
     --file "$HOME/.config/kwinrc" \
     --group ModifierOnlyShortcuts \
     --key Meta \
-    --delete >/dev/null 2>&1 || true
+    "" >/dev/null 2>&1 || true
 }
 
-install_launcher_desktop_file() {
-  install -m 644 \
-    "$REPO_DIR/desktop/keskos-launcher.desktop" \
-    "$HOME/.local/share/applications/keskos-launcher.desktop"
-}
-
-apply_launcher_shortcut() {
-  local shortcut_value="Meta+K,Meta+K,KESKOS Launcher"
+normalize_plasma_workspace_launcher() {
+  local launcher_value="Alt+F1,Alt+F1,Activate Application Launcher"
 
   "$kwriteconfig_bin" \
     --file "$HOME/.config/kglobalshortcutsrc" \
-    --group "services/keskos-launcher.desktop" \
+    --group plasmashell \
+    --key "activate application launcher" \
+    "$launcher_value" >/dev/null 2>&1 || true
+}
+
+install_launcher_desktop_files() {
+  local desktop_file=""
+
+  while IFS= read -r desktop_file; do
+    install -m 644 \
+      "$desktop_file" \
+      "$HOME/.local/share/applications/$(basename "$desktop_file")"
+  done < <(find "$REPO_DIR/desktop" -maxdepth 1 -type f -name '*.desktop' | sort)
+}
+
+write_application_shortcut() {
+  local desktop_id="$1"
+  local shortcut_value="$2"
+
+  "$kwriteconfig_bin" \
+    --file "$HOME/.config/kglobalshortcutsrc" \
+    --group "services/$desktop_id" \
     --key "_launch" \
     "$shortcut_value"
 
   "$kwriteconfig_bin" \
     --file "$HOME/.config/kglobalshortcutsrc" \
-    --group "keskos-launcher.desktop" \
+    --group "$desktop_id" \
     --key "_launch" \
     "$shortcut_value"
+}
+
+clear_conflicting_shortcuts() {
+  "$kwriteconfig_bin" \
+    --file "$HOME/.config/kglobalshortcutsrc" \
+    --group kwin \
+    --key "Edit Tiles" \
+    "none,none,Toggle Tiles Editor" >/dev/null 2>&1 || true
+
+  "$kwriteconfig_bin" \
+    --file "$HOME/.config/kglobalshortcutsrc" \
+    --group kwin \
+    --key Overview \
+    "none,none,Toggle Overview" >/dev/null 2>&1 || true
+
+  "$kwriteconfig_bin" \
+    --file "$HOME/.config/kglobalshortcutsrc" \
+    --group kwin \
+    --key "Walk Through Windows (Reverse)" \
+    "Alt+Shift+Tab,Alt+Shift+Tab,Walk Through Windows (Reverse)" >/dev/null 2>&1 || true
+
+  write_application_shortcut "org.kde.spectacle.desktop" "Print,Print,Spectacle"
+  write_application_shortcut "org.kde.kscreen.desktop" "Display,Display,Display Configuration"
+}
+
+apply_launcher_shortcuts() {
+  write_application_shortcut "keskos-launcher.desktop" "Meta+K,Meta+K,KESKOS Launcher"
+  write_application_shortcut "keskos-terminal.desktop" "Meta+T\\tMeta+Return,Meta+T\\tMeta+Return,KESKOS Terminal"
+  write_application_shortcut "keskos-files.desktop" "Meta+N,Meta+N,KESKOS Files"
+  write_application_shortcut "keskos-browser.desktop" "Meta+W,Meta+W,KESKOS Browser"
+  write_application_shortcut "keskos-launcher-apps.desktop" "Meta+Shift+K,Meta+Shift+K,KESKOS Apps"
+  write_application_shortcut "keskos-launcher-windows.desktop" "Meta+Shift+Tab,Meta+Shift+Tab,KESKOS Windows"
+  write_application_shortcut "keskos-launcher-settings.desktop" "Meta+Shift+S,Meta+Shift+S,KESKOS Settings"
+  write_application_shortcut "keskos-launcher-power.desktop" "Meta+P,Meta+P,KESKOS Power"
+}
+
+apply_modifier_only_meta() {
+  local meta_action="org.kde.kglobalaccel,/component/keskos_launcher_desktop,org.kde.kglobalaccel.Component,invokeShortcut,_launch"
+
+  "$kwriteconfig_bin" \
+    --file "$HOME/.config/kwinrc" \
+    --group ModifierOnlyShortcuts \
+    --key Meta \
+    "$meta_action" >/dev/null 2>&1 || true
 }
 
 refresh_kde_shortcuts() {
@@ -101,11 +160,14 @@ main() {
   backup_file "$HOME/.config/kwinrc"
 
   cleanup_legacy_keskos_bindings
-  install_launcher_desktop_file
-  apply_launcher_shortcut
+  normalize_plasma_workspace_launcher
+  install_launcher_desktop_files
+  clear_conflicting_shortcuts
+  apply_launcher_shortcuts
+  apply_modifier_only_meta
   refresh_kde_shortcuts
 
-  log "Installed the KESKOS launcher desktop file and bound it to Meta+K."
+  log "Installed all KESKOS launcher entries, bound the Meta-based shortcuts, and registered Meta as the main launcher key."
 }
 
 main "$@"

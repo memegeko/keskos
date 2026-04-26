@@ -1,0 +1,7 @@
+configuration {
+    kb-clear-line: "Control+l";
+    kb-mode-complete: "";
+    inputchange {
+        action: "kb-accept-custom";
+    }
+}
