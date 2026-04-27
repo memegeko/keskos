@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-04-27
+
+### Remove broken release automation
+
+The GitHub Actions ISO release pipeline was removed from `main`. KeskOS releases are now published manually after a local `./build.sh` and test pass.
+
+### Changed
+
+- removed the broken GitHub Actions ISO release workflow
+- removed the CI/container-only build path from `build.sh`
+- rewrote the README to describe manual release publishing instead of tag-triggered automation
+
 ## 2026-04-26
 
 ### Convert KeskOS to an ISO project
@@ -28,8 +40,6 @@
 - changed launcher/browser/Quickshell paths away from the old `~/.local` installer layout and into `/usr/local/bin` and `/usr/local/share/keskos`
 - added a Calamares post-install hook that removes live-only pieces and applies installed-user defaults
 - rewrote the README for the ISO workflow
-- added GitHub Actions release automation so version tags can publish a ready-to-download ISO
-- taught `build.sh` a CI/container mode so the release pipeline can run as root inside an Arch build container
 - aligned the ISO profile to the supported `bios.syslinux` + `uefi.grub` boot path and added the missing host/package requirements for release builds
 - removed the invalid `ttf-vt323` package reference so the ISO package set resolves cleanly on Arch
 

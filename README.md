@@ -17,16 +17,13 @@ The desktop keeps the same black/orange machine-console look the old script inst
 
 The old script-based installer is preserved on a separate branch so none of that work was lost.
 
-## Download a Ready ISO
+## Releases
 
-If you just want to try `keskos`, download the prebuilt image from GitHub Releases instead of building it yourself:
+Prebuilt ISOs are published manually when available:
 
 - Releases: <https://github.com/memegeko/keskos/releases>
 
-Tagged releases on `main` now build the ISO automatically and attach:
-
-- the bootable `keskos` ISO
-- a `SHA256SUMS.txt` checksum file
+If the releases page is empty, build locally with `./build.sh`.
 
 ## Branches
 
@@ -110,24 +107,19 @@ The final ISO lands in:
 ./out/
 ```
 
-## Release Automation
+## Publishing a Release
 
-`main` now includes a GitHub Actions release pipeline:
+`keskos` is currently released manually.
 
-- workflow file: [.github/workflows/release-iso.yml](.github/workflows/release-iso.yml)
-- tag pushes like `v0.1.0` build the ISO and publish it to GitHub Releases
-- manual `workflow_dispatch` runs build the ISO as a downloadable Actions artifact
-
-To publish a new release as the project maintainer:
+Typical flow:
 
 ```bash
 git checkout main
 git pull
-git tag v0.1.0
-git push origin v0.1.0
+./build.sh
 ```
 
-That tag push triggers the release workflow and uploads the finished ISO automatically.
+After the ISO is built and tested, upload the finished image and checksum file from `./out/` to GitHub Releases manually.
 
 ## Test the ISO
 
@@ -273,7 +265,6 @@ keskos/
 - it will call `sudo` only for the `mkarchiso` phase
 - `work/` and `out/` are ignored in git
 - the current build assumes a standard Arch host with network access so it can fetch AUR sources
-- in CI, `build.sh` supports a root/container mode through `KESKOS_CI=1` so GitHub can publish releases without a local manual build
 
 ## Legacy Script Installer
 

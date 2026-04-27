@@ -12,8 +12,6 @@ AUR_BUILD_ROOT="${WORK_ROOT}/aur"
 SOURCE_DATE="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 ISO_VERSION="${KESKOS_ISO_VERSION:-$(date --date="@${SOURCE_DATE}" +%Y.%m.%d)}"
 AUR_PACKAGES=(calamares kdotool-bin)
-CI_MODE="${KESKOS_CI:-0}"
-CI_BUILD_USER="${KESKOS_CI_BUILD_USER:-keskbuild}"
 
 log() {
   printf '[keskos-build] %s\n' "$1"
@@ -26,10 +24,6 @@ warn() {
 fail() {
   printf '[keskos-build] error: %s\n' "$1" >&2
   exit 1
-}
-
-is_ci_root_build() {
-  [[ "${CI_MODE}" == "1" && ${EUID} -eq 0 ]]
 }
 
 require_command() {
@@ -73,24 +67,6 @@ prepare_workdirs() {
   mkdir -p "$LOCAL_REPO_DIR"
 }
 
-ensure_ci_builder() {
-  is_ci_root_build || return 0
-
-  if ! id -u "${CI_BUILD_USER}" >/dev/null 2>&1; then
-    log "Creating CI build user ${CI_BUILD_USER} for makepkg..."
-    useradd --create-home --user-group "${CI_BUILD_USER}"
-  fi
-
-  install -d -m 755 -o "${CI_BUILD_USER}" -g "${CI_BUILD_USER}" "$AUR_BUILD_ROOT"
-  install -d -m 755 -o "${CI_BUILD_USER}" -g "${CI_BUILD_USER}" "${WORK_ROOT}/pkgdest"
-
-  cat >"/etc/sudoers.d/10-${CI_BUILD_USER}" <<EOF
-${CI_BUILD_USER} ALL=(ALL) NOPASSWD: ALL
-Defaults:${CI_BUILD_USER} !requiretty
-EOF
-  chmod 440 "/etc/sudoers.d/10-${CI_BUILD_USER}"
-}
-
 build_aur_package() {
   local package_name="$1"
   local package_dir="${AUR_BUILD_ROOT}/${package_name}"
@@ -98,37 +74,20 @@ build_aur_package() {
 
   mkdir -p "$pkgdest"
 
-  if is_ci_root_build; then
-    if [[ ! -d "$package_dir/.git" ]]; then
-      log "Cloning AUR package ${package_name}..."
-      runuser -u "${CI_BUILD_USER}" -- git clone "https://aur.archlinux.org/${package_name}.git" "$package_dir"
-    else
-      log "Refreshing AUR package ${package_name}..."
-      runuser -u "${CI_BUILD_USER}" -- git -C "$package_dir" fetch origin
-      runuser -u "${CI_BUILD_USER}" -- git -C "$package_dir" reset --hard origin/master
-    fi
-
-    log "Building ${package_name} for the local ISO repository..."
-    runuser -u "${CI_BUILD_USER}" -- env PKGDEST="${pkgdest}" bash -lc "
-      cd \"${package_dir}\"
-      makepkg --syncdeps --needed --noconfirm --cleanbuild --clean
-    "
+  if [[ ! -d "$package_dir/.git" ]]; then
+    log "Cloning AUR package ${package_name}..."
+    git clone "https://aur.archlinux.org/${package_name}.git" "$package_dir"
   else
-    if [[ ! -d "$package_dir/.git" ]]; then
-      log "Cloning AUR package ${package_name}..."
-      git clone "https://aur.archlinux.org/${package_name}.git" "$package_dir"
-    else
-      log "Refreshing AUR package ${package_name}..."
-      git -C "$package_dir" fetch origin
-      git -C "$package_dir" reset --hard origin/master
-    fi
-
-    log "Building ${package_name} for the local ISO repository..."
-    (
-      cd "$package_dir"
-      PKGDEST="${pkgdest}" makepkg --syncdeps --needed --noconfirm --cleanbuild --clean
-    )
+    log "Refreshing AUR package ${package_name}..."
+    git -C "$package_dir" fetch origin
+    git -C "$package_dir" reset --hard origin/master
   fi
+
+  log "Building ${package_name} for the local ISO repository..."
+  (
+    cd "$package_dir"
+    PKGDEST="${pkgdest}" makepkg --syncdeps --needed --noconfirm --cleanbuild --clean
+  )
 
   find "$pkgdest" -maxdepth 1 -type f -name "${package_name}-*.pkg.tar.*" -exec cp -f {} "$LOCAL_REPO_DIR/" \;
 }
@@ -228,32 +187,22 @@ stage_boot_branding() {
 
 run_mkarchiso() {
   log "Building the KeskOS ISO with mkarchiso..."
-  if (( EUID == 0 )); then
-    mkarchiso \
-      -v \
-      -C "${GENERATED_PACMAN_CONF}" \
-      -w "${ARCHISO_WORK_DIR}" \
-      -o "${OUT_DIR}" \
-      "${STAGE_DIR}"
-  else
-    sudo mkarchiso \
-      -v \
-      -C "${GENERATED_PACMAN_CONF}" \
-      -w "${ARCHISO_WORK_DIR}" \
-      -o "${OUT_DIR}" \
-      "${STAGE_DIR}"
-  fi
+  sudo mkarchiso \
+    -v \
+    -C "${GENERATED_PACMAN_CONF}" \
+    -w "${ARCHISO_WORK_DIR}" \
+    -o "${OUT_DIR}" \
+    "${STAGE_DIR}"
 }
 
 main() {
   check_arch_host
   check_dependencies
-  if (( EUID == 0 )) && [[ "${CI_MODE}" != "1" ]]; then
+  if (( EUID == 0 )); then
     fail "Run build.sh as a regular user. The script will call sudo only for mkarchiso."
   fi
 
   prepare_workdirs
-  ensure_ci_builder
 
   for package_name in "${AUR_PACKAGES[@]}"; do
     build_aur_package "$package_name"
