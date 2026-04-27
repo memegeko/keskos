@@ -20,6 +20,11 @@ chmod 0440 /etc/sudoers.d/10-liveuser
 cp -a /etc/skel/. /home/liveuser/
 chown -R liveuser:liveuser /home/liveuser
 
+install -d -m 0755 /usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
+install -m 0644 \
+  /usr/local/share/keskos/source/configs/look-and-feel/com.keskos.desktop/contents/lockscreen/LockScreen.qml \
+  /usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreen.qml
+
 if [[ -f /home/liveuser/Desktop/Install\ KeskOS.desktop ]]; then
   chmod +x /home/liveuser/Desktop/Install\ KeskOS.desktop
 fi

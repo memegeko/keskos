@@ -196,7 +196,6 @@ stage_live_system_assets() {
   install -m 644 "${REPO_ROOT}/assets/kesk_os_logo_text.png" "${root}/usr/share/backgrounds/keskos/kesk_os_logo_text.png"
 
   cp -a "${REPO_ROOT}/configs/look-and-feel/com.keskos.desktop/." "${root}/usr/share/plasma/look-and-feel/com.keskos.desktop/"
-  install -m 644 "${REPO_ROOT}/configs/look-and-feel/com.keskos.desktop/contents/lockscreen/LockScreen.qml" "${root}/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreen.qml"
   install -m 644 "${REPO_ROOT}/configs/look-and-feel/com.keskos.desktop/contents/lockscreen/assets/background.png" "${root}/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/assets/background.png"
   install -m 644 "${REPO_ROOT}/configs/look-and-feel/com.keskos.desktop/contents/lockscreen/assets/logo.png" "${root}/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/assets/logo.png"
 
