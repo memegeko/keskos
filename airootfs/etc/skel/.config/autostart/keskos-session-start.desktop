@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KeskOS Session Start
+Comment=Apply KeskOS user defaults, wallpaper, and HUD
+Exec=/usr/local/bin/keskos-session-start
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=1
+NoDisplay=true
+StartupNotify=false
+

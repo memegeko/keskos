@@ -1,0 +1,57 @@
+QWidget {
+  background: #050403;
+  color: #e7c9b3;
+  font-family: "VT323", "JetBrainsMono Nerd Font", monospace;
+  font-size: 16px;
+}
+
+QPushButton {
+  background: #100906;
+  color: #ce6a35;
+  border: 1px solid #ce6a35;
+  padding: 6px 12px;
+  min-height: 30px;
+}
+
+QPushButton:hover,
+QPushButton:focus {
+  background: #1b0f09;
+}
+
+QLineEdit,
+QComboBox,
+QPlainTextEdit,
+QTextEdit,
+QListView,
+QTreeView,
+QTableView {
+  background: #0a0705;
+  color: #e7c9b3;
+  border: 1px solid #7a4e36;
+  selection-background-color: #ce6a35;
+  selection-color: #050403;
+}
+
+QCheckBox,
+QRadioButton,
+QLabel,
+QGroupBox,
+QToolButton {
+  color: #e7c9b3;
+}
+
+QProgressBar {
+  border: 1px solid #7a4e36;
+  background: #090605;
+  color: #e7c9b3;
+  text-align: center;
+}
+
+QProgressBar::chunk {
+  background: #ce6a35;
+}
+
+#sidebarApp {
+  background: #0b0907;
+  color: #e7c9b3;
+}

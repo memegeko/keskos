@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+shell_bin="${SHELL:-/bin/bash}"
+user_fastfetch_config="${HOME}/.config/fastfetch/config.jsonc"
+system_fastfetch_config="/usr/local/share/keskos/source/configs/fastfetch/config.jsonc"
+bash_rc_override="${HOME}/.config/keskos/bashrc"
+
+if [[ ! -x "$shell_bin" ]]; then
+  shell_bin="/bin/bash"
+fi
+
+if [[ -t 1 && -z "${KESKOS_FASTFETCH_SHOWN:-}" ]]; then
+  export KESKOS_FASTFETCH_SHOWN=1
+  if command -v fastfetch >/dev/null 2>&1; then
+    if [[ -f "$user_fastfetch_config" ]]; then
+      fastfetch --config "$user_fastfetch_config" || true
+    elif [[ -f "$system_fastfetch_config" ]]; then
+      fastfetch --config "$system_fastfetch_config" || true
+    else
+      fastfetch || true
+    fi
+    printf '\n'
+  fi
+fi
+
+case "$(basename "$shell_bin")" in
+  bash)
+    if [[ -f "$bash_rc_override" ]]; then
+      exec "$shell_bin" --rcfile "$bash_rc_override" -i
+    fi
+    exec "$shell_bin" -l
+    ;;
+  nu|nushell)
+    exec "$shell_bin" --login
+    ;;
+  sh|dash|zsh|fish|ksh|mksh)
+    exec "$shell_bin" -l
+    ;;
+  *)
+    exec "$shell_bin"
+    ;;
+esac
+

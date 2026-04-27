@@ -8,6 +8,8 @@ Item {
     property string value: ""
     property real scaleFactor: 1.0
     property int rowWidth: 380
+    property int labelWidth: Math.round(152 * root.scaleFactor)
+    property bool valueRightAligned: false
 
     width: rowWidth
     implicitHeight: layout.implicitHeight
@@ -19,18 +21,19 @@ Item {
         spacing: Math.round(10 * root.scaleFactor)
 
         GlowText {
-            Layout.preferredWidth: Math.round(118 * root.scaleFactor)
+            Layout.preferredWidth: root.labelWidth
             text: root.label
             dim: true
             fontSize: Math.round(12 * root.scaleFactor)
-            letterSpacing: Math.round(root.scaleFactor)
+            letterSpacing: Math.round(0.6 * root.scaleFactor)
         }
 
         GlowText {
             Layout.fillWidth: true
             text: root.value
             fontSize: Math.round(12 * root.scaleFactor)
-            letterSpacing: Math.round(0.5 * root.scaleFactor)
+            horizontalAlignment: root.valueRightAligned ? Text.AlignRight : Text.AlignLeft
+            letterSpacing: Math.round(0.3 * root.scaleFactor)
         }
     }
 }

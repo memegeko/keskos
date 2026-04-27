@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+THEME="/usr/local/share/keskos/source/configs/rofi/keskos.rasi"
+MAIN_CONFIG="/usr/local/share/keskos/source/configs/rofi/keskos-launcher-config.rasi"
+STATIC_CONFIG="/usr/local/share/keskos/source/configs/rofi/keskos-launcher-static-config.rasi"
+LAUNCHER_ROOT="/usr/local/share/keskos/source/launcher"
+SCRIPT_BIN="/usr/local/bin/keskos-launcher-script"
+MODE="main"
+ACTION=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mode)
+      MODE="${2:-main}"
+      shift 2
+      ;;
+    --action)
+      ACTION="${2:-}"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+export PYTHONPATH="${LAUNCHER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+
+if [[ -n "$ACTION" ]]; then
+  exec python3 -m kesk_runner action "$ACTION"
+fi
+
+case "$MODE" in
+  main|apps|windows|settings|power)
+    ;;
+  *)
+    MODE="main"
+    ;;
+esac
+
+CONFIG="$MAIN_CONFIG"
+if [[ "$MODE" == "power" ]]; then
+  CONFIG="$STATIC_CONFIG"
+fi
+
+(
+  python3 -m kesk_runner warm --sync-files >/dev/null 2>&1
+) &
+
+ROFI_MODES="kesk-main:${SCRIPT_BIN} main,kesk-apps:${SCRIPT_BIN} apps,kesk-windows:${SCRIPT_BIN} windows,kesk-settings:${SCRIPT_BIN} settings,kesk-power:${SCRIPT_BIN} power"
+SHOW_MODE="kesk-${MODE}"
+
+exec rofi \
+  -show "$SHOW_MODE" \
+  -modes "$ROFI_MODES" \
+  -config "$CONFIG" \
+  -theme "$THEME" \
+  -i \
+  -no-sort \
+  -matching normal
+

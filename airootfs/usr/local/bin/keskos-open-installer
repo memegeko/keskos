@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v calamares >/dev/null 2>&1; then
+  printf 'keskos-open-installer: calamares is not installed in this environment\n' >&2
+  exit 1
+fi
+
+if [[ ${EUID} -eq 0 ]]; then
+  exec calamares -d
+fi
+
+if command -v sudo >/dev/null 2>&1; then
+  exec sudo -E env \
+    DISPLAY="${DISPLAY:-}" \
+    XAUTHORITY="${XAUTHORITY:-}" \
+    WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+    XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+    DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+    QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}" \
+    calamares -d
+fi
+
+if command -v pkexec >/dev/null 2>&1; then
+  exec pkexec env \
+    DISPLAY="${DISPLAY:-}" \
+    XAUTHORITY="${XAUTHORITY:-}" \
+    WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+    XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+    DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+    QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}" \
+    calamares -d
+fi
+
+printf 'keskos-open-installer: neither sudo nor pkexec was available\n' >&2
+exit 1
+

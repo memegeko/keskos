@@ -5,8 +5,8 @@ Item {
 
     property var dataObject: ({})
     property real scaleFactor: 1.0
-    property int panelWidth: 385
-    property int panelHeight: 152
+    property int panelWidth: 768
+    property int panelHeight: 288
 
     width: panelWidth
     height: panelHeight
@@ -14,51 +14,45 @@ Item {
 
     Column {
         anchors.fill: parent
-        spacing: Math.round(4 * root.scaleFactor)
-
-        GlowText {
-            text: "SYSTEM STATUS"
-            fontSize: Math.round(17 * root.scaleFactor)
-            fontWeight: Font.DemiBold
-            letterSpacing: Math.round(3 * root.scaleFactor)
-        }
-
-        HudRule {
-            width: parent.width
-        }
+        spacing: Math.round(18 * root.scaleFactor)
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "OS"
+            label: "OS:"
             value: root.dataObject.os || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "KERNEL"
+            label: "KERNEL:"
             value: root.dataObject.kernel || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "UPTIME"
+            label: "UPTIME:"
             value: root.dataObject.uptime || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "SHELL"
+            label: "SHELL:"
             value: root.dataObject.shell || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "SESSION"
+            label: "SESSION:"
             value: root.dataObject.session || "--"
         }
     }

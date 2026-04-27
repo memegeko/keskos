@@ -5,8 +5,8 @@ Item {
 
     property var dataObject: ({})
     property real scaleFactor: 1.0
-    property int panelWidth: 385
-    property int panelHeight: 152
+    property int panelWidth: 984
+    property int panelHeight: 310
 
     width: panelWidth
     height: panelHeight
@@ -14,44 +14,50 @@ Item {
 
     Column {
         anchors.fill: parent
-        spacing: Math.round(4 * root.scaleFactor)
-
-        GlowText {
-            text: "MEMORY"
-            fontSize: Math.round(17 * root.scaleFactor)
-            fontWeight: Font.DemiBold
-            letterSpacing: Math.round(3 * root.scaleFactor)
-        }
-
-        HudRule {
-            width: parent.width
-        }
+        spacing: Math.round(14 * root.scaleFactor)
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(176 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "TOTAL"
+            label: "TOTAL RAM:"
             value: root.dataObject.total || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(176 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "USED"
+            label: "USED RAM:"
             value: root.dataObject.used || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(176 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "USAGE"
+            label: "FREE RAM:"
+            value: root.dataObject.free || "--"
+        }
+
+        HudFieldRow {
+            rowWidth: root.panelWidth
+            labelWidth: Math.round(176 * root.scaleFactor)
+            scaleFactor: root.scaleFactor
+            label: "USAGE:"
             value: root.dataObject.percent || "--"
         }
 
-        GlowText {
-            text: root.dataObject.bar || "[....................]"
-            fontSize: Math.round(12 * root.scaleFactor)
-            letterSpacing: Math.round(root.scaleFactor)
+        HudRule {
+            width: Math.round(118 * root.scaleFactor)
+        }
+
+        SegmentMeter {
+            meterWidth: Math.round(904 * root.scaleFactor)
+            meterHeight: Math.round(54 * root.scaleFactor)
+            scaleFactor: root.scaleFactor
+            totalSegments: 28
+            filledSegments: Number(root.dataObject.segments_filled || 0)
         }
     }
 }

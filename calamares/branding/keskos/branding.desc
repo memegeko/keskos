@@ -1,0 +1,38 @@
+---
+componentName: keskos
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 980px,640px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+  productName: "KeskOS"
+  shortProductName: "KeskOS"
+  version: "Arch KDE"
+  shortVersion: "Arch KDE"
+  versionedName: "KeskOS Arch Edition"
+  shortVersionedName: "KeskOS"
+  bootloaderEntryName: "KeskOS"
+  productUrl: "https://github.com/memegeko/keskos"
+  supportUrl: "https://github.com/memegeko/keskos/issues"
+  knownIssuesUrl: "https://github.com/memegeko/keskos/issues"
+  releaseNotesUrl: "https://github.com/memegeko/keskos"
+  donateUrl: ""
+
+images:
+  productIcon: "icon.png"
+  productLogo: "logo.png"
+  productWallpaper: "wallpaper.png"
+  productWelcome: "logo.png"
+
+style:
+  SidebarBackground: "#090605"
+  SidebarText: "#e7c9b3"
+  SidebarTextCurrent: "#090605"
+  SidebarBackgroundCurrent: "#ce6a35"
+
+slideshow: "show.qml"
+slideshowAPI: 2

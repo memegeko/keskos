@@ -3,3 +3,5 @@ KeskOrange.colors
 keskosbackground.png
 __pycache__/
 *.pyc
+work/
+out/

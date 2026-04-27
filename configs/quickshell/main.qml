@@ -5,62 +5,60 @@ import QtQuick
 Scope {
     id: root
 
-    property real scaleFactor: Number(Quickshell.env("KESKOS_QS_SCALE") || 1.0)
-    property string helperPath: (Quickshell.env("HOME") || "") + "/.local/bin/keskos-quickshell-data"
+    property real scaleFactor: Number(Quickshell.env("KESKOS_QS_SCALE") || 0.46875)
+    property string helperPath: "/usr/local/bin/keskos-quickshell-data"
 
-    readonly property int sideMargin: Math.round(76 * scaleFactor)
-    readonly property int topOffset: Math.round(79 * scaleFactor)
-    readonly property int gapTopMiddle: Math.round(120 * scaleFactor)
-    readonly property int gapMiddleBottom: Math.round(141 * scaleFactor)
-    readonly property int panelWidth: Math.round(385 * scaleFactor)
-    readonly property int topLeftHeight: Math.round(152 * scaleFactor)
-    readonly property int topRightHeight: Math.round(172 * scaleFactor)
-    readonly property int middleLeftHeight: Math.round(152 * scaleFactor)
-    readonly property int middleRightHeight: Math.round(152 * scaleFactor)
-    readonly property int bottomLeftHeight: Math.round(172 * scaleFactor)
-    readonly property int bottomRightHeight: Math.round(152 * scaleFactor)
+    readonly property var zeroBars: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     readonly property var systemStatusFallback: ({
         "os": "Arch Linux",
         "kernel": "--",
         "uptime": "--",
         "shell": "--",
-        "session": "KDE Plasma / wayland"
+        "session": "KDE Plasma (Wayland)"
     })
 
     readonly property var networkFallback: ({
         "interface": "lo",
-        "status": "offline",
+        "connection": "Disconnected",
+        "status": "OFFLINE",
         "local_ip": "n/a",
         "gateway": "n/a",
         "down": "0 B/s",
-        "up": "0 B/s"
+        "up": "0 B/s",
+        "download_history": root.zeroBars,
+        "upload_history": root.zeroBars
     })
 
     readonly property var systemLogFallback: ({
         "lines": [
-            "BOOTSTRAP CHANNEL READY",
-            "HUD OVERLAY STANDBY",
-            "WAYLAND LINK ACTIVE",
-            "COMMAND LAYER IDLE",
-            "MEMORY TELEMETRY OK",
-            "NETWORK WATCH ACTIVE"
+            "[12:45:10] bootstrap: Signal channel ready",
+            "[12:45:11] display: Wayland overlay linked",
+            "[12:45:12] network: Watch process active",
+            "[12:45:13] memory: Telemetry online",
+            "[12:45:14] profile: Access control synced",
+            "[12:45:15] keskos: Awaiting input..."
         ]
     })
 
     readonly property var systemProfileFallback: ({
-        "host": "kesk-node",
+        "host": "kesk-node-01",
         "user": "user",
         "machine": "x86_64",
-        "session": "KDE Plasma / wayland",
-        "uptime": "n/a"
+        "session": "KDE Plasma (Wayland)",
+        "uptime": "n/a",
+        "node": "KESK-01",
+        "access": "GRANTED",
+        "clearance": "USER"
     })
 
     readonly property var memoryFallback: ({
         "total": "0 GiB",
         "used": "0 GiB",
+        "free": "0 GiB",
         "percent": "0%",
-        "bar": "[....................]"
+        "percent_value": 0,
+        "segments_filled": 0
     })
 
     property var systemStatusData: systemStatusFallback
@@ -69,9 +67,13 @@ Scope {
     property var systemProfileData: systemProfileFallback
     property var memoryData: memoryFallback
 
+    function s(value) {
+        return Math.round(value * scaleFactor)
+    }
+
     function parseObjectJson(text, fallback) {
         try {
-            let parsed = JSON.parse(text.trim())
+            const parsed = JSON.parse(text.trim())
             return parsed && typeof parsed === "object" ? parsed : fallback
         } catch (error) {
             return fallback
@@ -80,7 +82,7 @@ Scope {
 
     function parseArrayJson(text, fallback) {
         try {
-            let parsed = JSON.parse(text.trim())
+            const parsed = JSON.parse(text.trim())
             return Array.isArray(parsed) ? { "lines": parsed } : fallback
         } catch (error) {
             return fallback
@@ -217,63 +219,63 @@ Scope {
                 anchors.fill: parent
 
                 HudWidgetLoader {
-                    x: root.sideMargin
-                    y: root.topOffset
+                    x: root.s(118)
+                    y: root.s(266)
                     source: Quickshell.shellRoot + "/widgets/system_status.qml"
                     widgetData: root.systemStatusData
                     uiScale: root.scaleFactor
-                    widgetWidth: root.panelWidth
-                    widgetHeight: root.topLeftHeight
+                    widgetWidth: root.s(768)
+                    widgetHeight: root.s(288)
                 }
 
                 HudWidgetLoader {
-                    x: root.sideMargin
-                    y: root.topOffset + root.topLeftHeight + root.gapTopMiddle
+                    x: root.s(118)
+                    y: root.s(882)
                     source: Quickshell.shellRoot + "/widgets/core_modules.qml"
                     widgetData: ({})
                     uiScale: root.scaleFactor
-                    widgetWidth: root.panelWidth
-                    widgetHeight: root.middleLeftHeight
+                    widgetWidth: root.s(770)
+                    widgetHeight: root.s(334)
                 }
 
                 HudWidgetLoader {
-                    x: root.sideMargin
-                    y: root.topOffset + root.topLeftHeight + root.gapTopMiddle + root.middleLeftHeight + root.gapMiddleBottom
+                    x: root.s(118)
+                    y: root.s(1556)
                     source: Quickshell.shellRoot + "/widgets/network.qml"
                     widgetData: root.networkData
                     uiScale: root.scaleFactor
-                    widgetWidth: root.panelWidth
-                    widgetHeight: root.bottomLeftHeight
+                    widgetWidth: root.s(770)
+                    widgetHeight: root.s(420)
                 }
 
                 HudWidgetLoader {
-                    x: parent.width - root.sideMargin - root.panelWidth
-                    y: root.topOffset
+                    x: root.s(2878)
+                    y: root.s(266)
                     source: Quickshell.shellRoot + "/widgets/system_log.qml"
                     widgetData: root.systemLogData
                     uiScale: root.scaleFactor
-                    widgetWidth: root.panelWidth
-                    widgetHeight: root.topRightHeight
+                    widgetWidth: root.s(1088)
+                    widgetHeight: root.s(406)
                 }
 
                 HudWidgetLoader {
-                    x: parent.width - root.sideMargin - root.panelWidth
-                    y: root.topOffset + root.topRightHeight + root.gapTopMiddle
+                    x: root.s(2964)
+                    y: root.s(980)
                     source: Quickshell.shellRoot + "/widgets/system_profile.qml"
                     widgetData: root.systemProfileData
                     uiScale: root.scaleFactor
-                    widgetWidth: root.panelWidth
-                    widgetHeight: root.middleRightHeight
+                    widgetWidth: root.s(984)
+                    widgetHeight: root.s(380)
                 }
 
                 HudWidgetLoader {
-                    x: parent.width - root.sideMargin - root.panelWidth
-                    y: root.topOffset + root.topRightHeight + root.gapTopMiddle + root.middleRightHeight + root.gapMiddleBottom
+                    x: root.s(2964)
+                    y: root.s(1670)
                     source: Quickshell.shellRoot + "/widgets/memory.qml"
                     widgetData: root.memoryData
                     uiScale: root.scaleFactor
-                    widgetWidth: root.panelWidth
-                    widgetHeight: root.bottomRightHeight
+                    widgetWidth: root.s(984)
+                    widgetHeight: root.s(310)
                 }
             }
         }

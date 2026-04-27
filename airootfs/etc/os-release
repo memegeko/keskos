@@ -1,0 +1,12 @@
+NAME="KeskOS"
+PRETTY_NAME="KeskOS Live"
+ID=arch
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;206;106;53"
+HOME_URL="https://github.com/memegeko/keskos"
+DOCUMENTATION_URL="https://github.com/memegeko/keskos"
+SUPPORT_URL="https://github.com/memegeko/keskos/issues"
+BUG_REPORT_URL="https://github.com/memegeko/keskos/issues"
+PRIVACY_POLICY_URL="https://github.com/memegeko/keskos"
+LOGO=archlinux-logo

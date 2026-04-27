@@ -39,7 +39,7 @@ def execute_action(result: Result) -> ActionOutcome:
         return ActionOutcome(close_rofi=False, switch_mode=result.action["mode"])
 
     if action_type == "launcher":
-        launcher_bin = Path.home() / ".local/bin/keskos-launcher"
+        launcher_bin = Path("/usr/local/bin/keskos-launcher")
         mode = result.action.get("mode")
         if not launcher_bin.is_file():
             return ActionOutcome(close_rofi=False, message="keskos-launcher is not installed yet.")

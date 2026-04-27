@@ -163,8 +163,9 @@ def choose_terminal() -> list[str]:
 
 
 def konsole_profile_args() -> list[str]:
-    profile_path = Path.home() / ".local/share/konsole" / "KeskOS.profile"
-    if profile_path.is_file():
+    user_profile = Path.home() / ".local/share/konsole" / "KeskOS.profile"
+    system_profile = Path("/usr/share/konsole/KeskOS.profile")
+    if user_profile.is_file() or system_profile.is_file():
         return ["--profile", "KeskOS"]
     return []
 
@@ -208,7 +209,7 @@ def open_path(target: str, prefer_dolphin: bool = False) -> None:
 
 
 def browser_homepage_url() -> str:
-    homepage_path = "/usr/share/kesk/browser-home/index.html"
+    homepage_path = "/usr/share/keskos/browser-home/index.html"
     if Path(homepage_path).is_file():
         return f"file://{homepage_path}"
     return "https://google.com"

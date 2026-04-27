@@ -5,8 +5,8 @@ Item {
 
     property var dataObject: ({})
     property real scaleFactor: 1.0
-    property int panelWidth: 385
-    property int panelHeight: 172
+    property int panelWidth: 1088
+    property int panelHeight: 406
 
     width: panelWidth
     height: panelHeight
@@ -16,18 +16,7 @@ Item {
 
     Column {
         anchors.fill: parent
-        spacing: Math.round(4 * root.scaleFactor)
-
-        GlowText {
-            text: "SYSTEM LOG"
-            fontSize: Math.round(17 * root.scaleFactor)
-            fontWeight: Font.DemiBold
-            letterSpacing: Math.round(3 * root.scaleFactor)
-        }
-
-        HudRule {
-            width: parent.width
-        }
+        spacing: Math.round(12 * root.scaleFactor)
 
         Repeater {
             model: root.lines
@@ -35,8 +24,8 @@ Item {
             GlowText {
                 width: root.panelWidth
                 text: modelData
-                fontSize: Math.round(11 * root.scaleFactor)
-                letterSpacing: Math.round(0.5 * root.scaleFactor)
+                fontSize: Math.round(15 * root.scaleFactor)
+                letterSpacing: Math.round(0.1 * root.scaleFactor)
             }
         }
     }

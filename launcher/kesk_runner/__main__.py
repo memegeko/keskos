@@ -138,7 +138,7 @@ def build_context(mode: str, query: str, recent_store: RecentStore) -> SearchCon
 
 
 def home_results(context: SearchContext) -> list[Result]:
-    homepage_url = "/usr/share/kesk/browser-home/index.html"
+    homepage_url = "/usr/share/keskos/browser-home/index.html"
     if context.session_type == "wayland":
         windows_action = {"type": "launcher", "mode": "windows"}
         if shutil.which("kdotool"):

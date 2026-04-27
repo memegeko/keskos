@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODE="${1:-main}"
+LAUNCHER_ROOT="/usr/local/share/keskos/source/launcher"
+shift || true
+
+export PYTHONPATH="${LAUNCHER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+exec python3 -m kesk_runner script --mode "$MODE" --entry-text "${*:-}"
+

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Install KeskOS
+Comment=Start the Calamares installer
+Exec=/usr/local/bin/keskos-open-installer
+Icon=system-software-install
+Terminal=false
+StartupNotify=true
+Categories=System;Settings;
+Keywords=install;installer;calamares;keskos;

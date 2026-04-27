@@ -5,8 +5,8 @@ Item {
 
     property var dataObject: ({})
     property real scaleFactor: 1.0
-    property int panelWidth: 385
-    property int panelHeight: 152
+    property int panelWidth: 984
+    property int panelHeight: 380
 
     width: panelWidth
     height: panelHeight
@@ -14,52 +14,74 @@ Item {
 
     Column {
         anchors.fill: parent
-        spacing: Math.round(4 * root.scaleFactor)
-
-        GlowText {
-            text: "SYSTEM PROFILE"
-            fontSize: Math.round(17 * root.scaleFactor)
-            fontWeight: Font.DemiBold
-            letterSpacing: Math.round(3 * root.scaleFactor)
-        }
-
-        HudRule {
-            width: parent.width
-        }
+        spacing: Math.round(13 * root.scaleFactor)
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "HOST"
+            label: "HOST:"
             value: root.dataObject.host || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "USER"
+            label: "USER:"
             value: root.dataObject.user || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "MACHINE"
+            label: "MACHINE:"
             value: root.dataObject.machine || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "SESSION"
+            label: "SESSION:"
             value: root.dataObject.session || "--"
         }
 
         HudFieldRow {
             rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
             scaleFactor: root.scaleFactor
-            label: "UPTIME"
+            label: "UPTIME:"
             value: root.dataObject.uptime || "--"
+        }
+
+        HudRule {
+            width: Math.round(920 * root.scaleFactor)
+        }
+
+        HudFieldRow {
+            rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
+            scaleFactor: root.scaleFactor
+            label: "NODE:"
+            value: root.dataObject.node || "KESK-01"
+        }
+
+        HudFieldRow {
+            rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
+            scaleFactor: root.scaleFactor
+            label: "ACCESS:"
+            value: root.dataObject.access || "GRANTED"
+        }
+
+        HudFieldRow {
+            rowWidth: root.panelWidth
+            labelWidth: Math.round(158 * root.scaleFactor)
+            scaleFactor: root.scaleFactor
+            label: "CLEARANCE:"
+            value: root.dataObject.clearance || "USER"
         }
     }
 }

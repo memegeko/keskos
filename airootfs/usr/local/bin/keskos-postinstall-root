@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() {
+  printf '[keskos-postinstall] %s\n' "$1"
+}
+
+detect_target_user() {
+  awk -F: '
+    $1 != "liveuser" &&
+    $1 != "nobody" &&
+    $3 >= 1000 &&
+    $7 !~ /(nologin|false)$/ {
+      print $1
+      exit
+    }
+  ' /etc/passwd
+}
+
+write_installed_os_release() {
+  cat >/etc/os-release <<'EOF'
+NAME="KeskOS"
+PRETTY_NAME="KeskOS"
+ID=arch
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;206;106;53"
+HOME_URL="https://github.com/memegeko/keskos"
+DOCUMENTATION_URL="https://github.com/memegeko/keskos"
+SUPPORT_URL="https://github.com/memegeko/keskos/issues"
+BUG_REPORT_URL="https://github.com/memegeko/keskos/issues"
+PRIVACY_POLICY_URL="https://github.com/memegeko/keskos"
+LOGO=archlinux-logo
+EOF
+}
+
+cleanup_live_bits() {
+  rm -f /etc/sudoers.d/10-liveuser
+  rm -f /etc/sddm.conf.d/keskos-live.conf
+  rm -f /usr/share/applications/install-keskos.desktop
+  rm -f /etc/skel/Desktop/Install\ KeskOS.desktop
+  mkdir -p /usr/local/share/applications
+  cat >/usr/local/share/applications/calamares.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Hidden=true
+NoDisplay=true
+Name=Calamares
+EOF
+
+  if id -u liveuser >/dev/null 2>&1; then
+    userdel -r liveuser >/dev/null 2>&1 || true
+  else
+    rm -rf /home/liveuser
+  fi
+}
+
+configure_target_user() {
+  local target_user="$1"
+  local target_home=""
+
+  target_home="$(getent passwd "$target_user" | cut -d: -f6)"
+  [[ -n "$target_home" ]] || return 0
+
+  rm -f "$target_home/Desktop/Install KeskOS.desktop"
+  TARGET_USER="$target_user" /usr/local/bin/keskos-configure-user --offline --force || true
+  chown -R "$target_user:$target_user" "$target_home" >/dev/null 2>&1 || true
+}
+
+main() {
+  local target_user=""
+
+  write_installed_os_release
+  cleanup_live_bits
+  target_user="$(detect_target_user || true)"
+  if [[ -n "$target_user" ]]; then
+    log "Configuring installed user defaults for ${target_user}"
+    configure_target_user "$target_user"
+  else
+    log "No target desktop user was detected during post-install."
+  fi
+  log "KeskOS post-install tasks complete."
+}
+
+main "$@"
