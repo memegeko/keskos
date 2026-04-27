@@ -31,6 +31,7 @@
 - added GitHub Actions release automation so version tags can publish a ready-to-download ISO
 - taught `build.sh` a CI/container mode so the release pipeline can run as root inside an Arch build container
 - aligned the ISO profile to the supported `bios.syslinux` + `uefi.grub` boot path and added the missing host/package requirements for release builds
+- removed the invalid `ttf-vt323` package reference so the ISO package set resolves cleanly on Arch
 
 ### Preserved
 

@@ -178,7 +178,7 @@ The branding is themed for KeskOS:
 
 - black / charcoal background
 - orange highlights
-- VT323 / monospace feel
+- VT323-style / monospace feel
 - custom slideshow
 - KeskOS logo and wallpaper
 
