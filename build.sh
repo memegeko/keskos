@@ -50,6 +50,8 @@ check_dependencies() {
     mkarchiso
     makepkg
     repo-add
+    grub-install
+    syslinux
     curl
     git
     awk

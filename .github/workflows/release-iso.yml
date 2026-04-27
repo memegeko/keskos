@@ -30,7 +30,7 @@ jobs:
             archlinux:base-devel \
             bash -lc '
               pacman -Syu --noconfirm archlinux-keyring
-              pacman -Syu --noconfirm archiso pacman-contrib git base-devel curl python sudo rsync
+              pacman -Syu --noconfirm archiso pacman-contrib git base-devel curl python sudo rsync grub syslinux
               chmod +x ./build.sh
               ./build.sh
             '

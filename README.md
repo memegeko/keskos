@@ -74,7 +74,7 @@ Build on Arch Linux.
 Install the required host-side tools:
 
 ```bash
-sudo pacman -S --needed archiso pacman-contrib git base-devel curl python sudo
+sudo pacman -S --needed archiso pacman-contrib git base-devel curl python sudo grub syslinux
 ```
 
 Notes:
@@ -82,6 +82,8 @@ Notes:
 - `archiso` provides `mkarchiso`
 - `pacman-contrib` provides `repo-add`
 - `base-devel` is needed because `build.sh` builds AUR packages
+- `grub` provides `grub-install` for `uefi.grub`
+- `syslinux` is required for the BIOS boot mode in the ISO profile
 - `build.sh` creates a local pacman repo for `calamares` and `kdotool-bin`
 
 ## Build the ISO

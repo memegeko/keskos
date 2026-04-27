@@ -30,6 +30,7 @@
 - rewrote the README for the ISO workflow
 - added GitHub Actions release automation so version tags can publish a ready-to-download ISO
 - taught `build.sh` a CI/container mode so the release pipeline can run as root inside an Arch build container
+- aligned the ISO profile to the supported `bios.syslinux` + `uefi.grub` boot path and added the missing host/package requirements for release builds
 
 ### Preserved
 
