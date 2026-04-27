@@ -28,6 +28,8 @@
 - changed launcher/browser/Quickshell paths away from the old `~/.local` installer layout and into `/usr/local/bin` and `/usr/local/share/keskos`
 - added a Calamares post-install hook that removes live-only pieces and applies installed-user defaults
 - rewrote the README for the ISO workflow
+- added GitHub Actions release automation so version tags can publish a ready-to-download ISO
+- taught `build.sh` a CI/container mode so the release pipeline can run as root inside an Arch build container
 
 ### Preserved
 
