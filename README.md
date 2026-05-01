@@ -13,12 +13,13 @@
 
 The current ISO release asset is:
 
-- `keskos-2026.05.01-x86_64.iso`
-- Size: about `2.1 GB`
+- `keskos-2026.05.01-x86_64.iso.zst`
+- Download size: about `1.9 GB`
+- Extracted ISO size: about `2.1 GB`
 - SHA-256:
 
 ```text
-77152eeb7de570492c5ae875a9d4c41470ecea674dd5c316219491961a5940f8
+4b88553a0b39fc9567018b872881ac2bd093321787ec4429baba5859a8754b04
 ```
 
 Download it from:
@@ -141,12 +142,18 @@ The installed system carries over the visual identity:
 
 ## Installing KeskOS
 
-1. Download the latest ISO from [Releases](https://github.com/memegeko/keskos/releases).
-2. Write it to a USB drive with your preferred flashing tool.
-3. Boot the machine from that USB drive.
-4. Test the live desktop if you want.
-5. Open `Install KeskOS`.
-6. Follow the Calamares installer.
+1. Download the latest release asset from [Releases](https://github.com/memegeko/keskos/releases).
+2. Extract the ISO:
+
+```bash
+unzstd keskos-2026.05.01-x86_64.iso.zst
+```
+
+3. Write the extracted `.iso` to a USB drive with your preferred flashing tool.
+4. Boot the machine from that USB drive.
+5. Test the live desktop if you want.
+6. Open `Install KeskOS`.
+7. Follow the Calamares installer.
 
 Recommended VM settings for testing:
 

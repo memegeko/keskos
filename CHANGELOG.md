@@ -19,6 +19,7 @@ KeskOS now reads and behaves much more like a real operating system release rath
 - rewrote the README around the released ISO instead of the developer build tree
 - expanded the README to present KeskOS as a real OS with desktop, installer, branding, and workflow features
 - added a proper screenshot gallery for launcher, browser, terminal, lock screen, and installer steps
+- adjusted the README release section to reflect the shipped GitHub release asset format
 - tuned the custom titlebar branding and window decoration polish
 - improved the Calamares install screen layout so it stays dark and readable during live install progress
 
@@ -34,6 +35,7 @@ KeskOS now reads and behaves much more like a real operating system release rath
 ### Notes
 
 - the README is now intended to support the GitHub Releases page first
+- the release asset is published as a compressed `.iso.zst` because the raw ISO is slightly above GitHub's `2 GiB` asset limit
 - the old script installer remains preserved on `legacy-script-installer`
 
 ## 2026-04-27
