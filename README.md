@@ -26,21 +26,34 @@ Download it from:
 
 - [GitHub Releases](https://github.com/memegeko/keskos/releases)
 
-## What KeskOS Is
+### Using the Download
 
-`KeskOS` is a real bootable live ISO built on Arch Linux. It boots into a ready-to-use KDE Plasma desktop, includes a custom visual identity from boot to login to desktop, and installs through a themed Calamares GUI installer.
+The release is published as a compressed `.iso.zst` file.
 
-It is designed to feel like a complete operating system rather than a loose rice script:
+On Linux:
 
-- custom `KeskOS` desktop wallpaper and HUD
-- custom window decoration theme
-- dark orange-on-black Plasma styling
-- custom launcher built around the `KESK` command layer
-- themed Konsole with `fastfetch`
-- themed browser start page
-- themed SDDM login, lock screen, and splash
-- live installer experience with `Calamares`
-- live ISO desktop that is usable before install
+```bash
+unzstd keskos-2026.05.01-x86_64.iso.zst
+```
+
+On Windows:
+
+- extract it with `7-Zip`, `PeaZip`, or another archive tool with `.zst` support
+- this gives you `keskos-2026.05.01-x86_64.iso`
+- flash that `.iso` with `Rufus`, `balenaEtcher`, or `Ventoy`
+
+## About KeskOS
+
+`KeskOS` is a full live operating system built on Arch Linux. It boots straight into a usable KDE Plasma desktop, carries its own visual identity from boot to login to installer to desktop, and installs through a custom-themed Calamares workflow.
+
+It is meant to feel like a complete product instead of a loose rice script:
+
+- a real live ISO you can boot and test before installing
+- a dark industrial orange-on-black desktop style
+- a custom `KESK` command layer for launching apps, files, settings, web, windows, and power actions
+- a themed terminal, browser home page, login stack, lock screen, splash screen, and installer
+- a custom window decoration theme built for the rest of the OS look
+- a desktop that stays visually consistent across the live session and installed system
 
 ## Main Features
 
