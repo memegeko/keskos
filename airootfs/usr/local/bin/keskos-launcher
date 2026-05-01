@@ -1,13 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-THEME="/usr/local/share/keskos/source/configs/rofi/keskos.rasi"
-MAIN_CONFIG="/usr/local/share/keskos/source/configs/rofi/keskos-launcher-config.rasi"
-STATIC_CONFIG="/usr/local/share/keskos/source/configs/rofi/keskos-launcher-static-config.rasi"
-LAUNCHER_ROOT="/usr/local/share/keskos/source/launcher"
+SOURCE_ROOT=""
 SCRIPT_BIN="/usr/local/bin/keskos-launcher-script"
 MODE="main"
 ACTION=""
+
+find_source_root() {
+  local candidate=""
+  for candidate in \
+    "/usr/local/share/keskos/source" \
+    "/usr/share/keskos/source" \
+    "$HOME/.local/share/keskos/source"
+  do
+    if [[ -f "$candidate/configs/rofi/keskos.rasi" && -d "$candidate/launcher/kesk_runner" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -24,6 +36,17 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+SOURCE_ROOT="$(find_source_root || true)"
+if [[ -z "$SOURCE_ROOT" ]]; then
+  printf 'keskos-launcher: could not find the installed KeskOS source tree\n' >&2
+  exit 1
+fi
+
+THEME="${SOURCE_ROOT}/configs/rofi/keskos.rasi"
+MAIN_CONFIG="${SOURCE_ROOT}/configs/rofi/keskos-launcher-config.rasi"
+STATIC_CONFIG="${SOURCE_ROOT}/configs/rofi/keskos-launcher-static-config.rasi"
+LAUNCHER_ROOT="${SOURCE_ROOT}/launcher"
 
 export PYTHONPATH="${LAUNCHER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 
@@ -59,4 +82,3 @@ exec rofi \
   -i \
   -no-sort \
   -matching normal
-

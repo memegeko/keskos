@@ -14,6 +14,20 @@ Rectangle {
     property color messageColor: config.textColor
     property bool optionsVisible: config.showSession === "true"
 
+    function preferredUserName() {
+        const remembered = (userModel.lastUser || "").toString().trim()
+        if (remembered.length > 0) {
+            return remembered
+        }
+
+        const configured = (config.defaultUser || "").toString().trim()
+        if (configured.length > 0) {
+            return configured
+        }
+
+        return ""
+    }
+
     component RetroButton: QQC2.Button {
         id: retroButton
         implicitWidth: 118
@@ -222,7 +236,6 @@ Rectangle {
                 id: usernameField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 38
-                text: userModel.lastUser
                 font.family: "IBM Plex Mono"
                 font.pixelSize: 18
                 color: config.primaryGlow
@@ -328,7 +341,7 @@ Rectangle {
                 RetroButton {
                     text: "Cancel"
                     onClicked: {
-                        usernameField.text = userModel.lastUser
+                        usernameField.text = root.preferredUserName()
                         passwordField.text = ""
                         root.messageText = textConstants.prompt
                         root.messageColor = config.textColor
@@ -357,5 +370,12 @@ Rectangle {
         }
     }
 
-    Component.onCompleted: passwordField.forceActiveFocus()
+    Component.onCompleted: {
+        usernameField.text = root.preferredUserName()
+        if (usernameField.text.length > 0) {
+            passwordField.forceActiveFocus()
+        } else {
+            usernameField.forceActiveFocus()
+        }
+    }
 }

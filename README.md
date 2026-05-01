@@ -1,45 +1,197 @@
 # KeskOS
 
 <p align="center">
-  <img src="kesk_os_logo_text.png" alt="KeskOS logo" width="420">
+  <img src="assets/kesk_os_logo_text.png" alt="KeskOS logo" width="460">
 </p>
 
-`keskos` is now a proper Arch-based live ISO project that boots into KDE Plasma and installs through Calamares.
+<p align="center">
+  <strong>Legacy systems. Modern workflows.</strong><br>
+  An Arch-based KDE Plasma operating system with a dark industrial console style, a custom command launcher, and a fully themed live installer.
+</p>
 
-The desktop keeps the same black/orange machine-console look the old script installer built toward:
+## Current Release
 
-- dark industrial Plasma surface
-- orange accent `#ce6a35`
-- centered `rofi` command layer
-- Konsole profile with custom `fastfetch`
-- Quickshell HUD
-- matching SDDM, lock screen, and splash branding
+The current ISO release asset is:
 
-The old script-based installer is preserved on a separate branch so none of that work was lost.
+- `keskos-2026.05.01-x86_64.iso`
+- Size: about `2.1 GB`
+- SHA-256:
 
-## Releases
+```text
+77152eeb7de570492c5ae875a9d4c41470ecea674dd5c316219491961a5940f8
+```
 
-Prebuilt ISOs are published manually when available:
+Download it from:
 
-- Releases: <https://github.com/memegeko/keskos/releases>
+- [GitHub Releases](https://github.com/memegeko/keskos/releases)
 
-If the releases page is empty, build locally with `./build.sh`.
+## What KeskOS Is
 
-## Branches
+`KeskOS` is a real bootable live ISO built on Arch Linux. It boots into a ready-to-use KDE Plasma desktop, includes a custom visual identity from boot to login to desktop, and installs through a themed Calamares GUI installer.
 
-`main`
+It is designed to feel like a complete operating system rather than a loose rice script:
 
-- Archiso project
-- Calamares GUI installer
-- live KDE Plasma desktop
-- system-wide `keskos` assets and post-install hooks
+- custom `KeskOS` desktop wallpaper and HUD
+- custom window decoration theme
+- dark orange-on-black Plasma styling
+- custom launcher built around the `KESK` command layer
+- themed Konsole with `fastfetch`
+- themed browser start page
+- themed SDDM login, lock screen, and splash
+- live installer experience with `Calamares`
+- live ISO desktop that is usable before install
 
-`legacy-script-installer`
+## Main Features
 
-- preserved script-based desktop installer
-- original per-user setup flow
+### Live ISO
 
-Switch between them with:
+Booting the ISO gives you a real live desktop session with:
+
+- KDE Plasma
+- autologin into the live environment
+- working launcher, browser, terminal, and file manager
+- `Install KeskOS` desktop shortcut and menu entry
+- preloaded branding and theme assets
+
+### Installer
+
+KeskOS installs through Calamares with a custom visual style and standard guided flow:
+
+- Welcome
+- Location
+- Keyboard
+- Partitions
+- Users
+- Summary
+- Install
+- Finish
+
+### Desktop Experience
+
+The installed system carries over the visual identity:
+
+- custom orange console look
+- `KESK` launcher shortcuts
+- custom Konsole profile
+- custom browser home page
+- prefilled username on the first login screen after install
+- custom login / lock / splash stack
+
+## Screenshots
+
+### Desktop and Apps
+
+<p align="center">
+  <img src="docs/screenshots/kesklaucherstartpage.png" alt="Kesk launcher start page" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskssearch.png" alt="Kesk launcher search results" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskmath.png" alt="Kesk calculator result" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskgoogle.png" alt="Kesk web search shortcut" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskbrowserstartpage.png" alt="Kesk browser start page" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskos_terminal.png" alt="KeskOS terminal and fastfetch" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/lockscreen.png" alt="KeskOS lock screen" width="780">
+</p>
+
+### Installer Flow
+
+<p align="center">
+  <img src="docs/screenshots/keskos_installstep_welcome.png" alt="KeskOS installer welcome screen" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskos_installstep_location.png" alt="KeskOS installer location screen" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskos_installstep_keyboard.png" alt="KeskOS installer keyboard screen" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskos_installstep_partitions.png" alt="KeskOS installer partition screen" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskos_installstep_users.png" alt="KeskOS installer users screen" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskos_installstep_summary.png" alt="KeskOS installer summary screen" width="780">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/keskos_installstep_finish.png" alt="KeskOS installer finish screen" width="780">
+</p>
+
+## Installing KeskOS
+
+1. Download the latest ISO from [Releases](https://github.com/memegeko/keskos/releases).
+2. Write it to a USB drive with your preferred flashing tool.
+3. Boot the machine from that USB drive.
+4. Test the live desktop if you want.
+5. Open `Install KeskOS`.
+6. Follow the Calamares installer.
+
+Recommended VM settings for testing:
+
+- `4 GB` RAM or more
+- `4` vCPUs if available
+- `32 GB` virtual disk or more
+- UEFI firmware if you want to test the EFI path
+
+## Included Components
+
+KeskOS currently ships with these major pieces:
+
+- Arch Linux base
+- KDE Plasma desktop
+- Calamares installer
+- `rofi`-based `KESK` launcher
+- Konsole
+- Dolphin
+- Firefox / browser integration for the live environment
+- custom SDDM, lock screen, and splash
+- custom wallpaper, HUD, and branding assets
+
+## Release Notes for 2026.05.01
+
+This ISO line includes:
+
+- a real live desktop instead of the old script-only setup path
+- a themed Calamares installer
+- a seam-free custom window decoration path
+- launcher, browser, files, and terminal wired into the live session
+- post-install user defaults and first-login polish
+- branded login, lock screen, splash, and browser home
+
+## Source and Legacy Branch
+
+The repo still keeps the old script installer work safely preserved.
+
+Branches:
+
+- `main`
+  - the current Archiso + Calamares ISO project
+- `legacy-script-installer`
+  - the original script-based installer work
+
+Switch branches with:
 
 ```bash
 git checkout legacy-script-installer
@@ -49,233 +201,4 @@ and:
 
 ```bash
 git checkout main
-```
-
-## What Main Does
-
-The `main` branch builds a bootable Arch ISO that:
-
-- boots into a `liveuser` KDE Plasma session
-- autologins into the live desktop
-- ships the KeskOS wallpaper, launcher, terminal theme, and branding
-- exposes an `Install KeskOS` launcher and desktop shortcut
-- runs Calamares as the primary installer
-- applies KeskOS defaults to the installed system through post-install hooks
-
-The installed system does not depend on the old legacy script.
-
-## Build Requirements
-
-Build on Arch Linux.
-
-Install the required host-side tools:
-
-```bash
-sudo pacman -S --needed archiso pacman-contrib git base-devel curl python sudo grub syslinux
-```
-
-Notes:
-
-- `archiso` provides `mkarchiso`
-- `pacman-contrib` provides `repo-add`
-- `base-devel` is needed because `build.sh` builds AUR packages
-- `grub` provides `grub-install` for `uefi.grub`
-- `syslinux` is required for the BIOS boot mode in the ISO profile
-- `build.sh` creates a local pacman repo for `calamares` and `kdotool-bin`
-
-## Build the ISO
-
-```bash
-chmod +x build.sh
-./build.sh
-```
-
-What `build.sh` does:
-
-- verifies you are on Arch Linux
-- checks that required host tools exist
-- creates `work/` and `out/`
-- builds AUR packages into `work/localrepo/x86_64`
-- generates a temporary pacman config that points at that local repo
-- stages the Archiso profile into `work/profile`
-- runs `mkarchiso`
-- writes the finished ISO into `./out/`
-
-The final ISO lands in:
-
-```text
-./out/
-```
-
-## Publishing a Release
-
-`keskos` is currently released manually.
-
-Typical flow:
-
-```bash
-git checkout main
-git pull
-./build.sh
-```
-
-After the ISO is built and tested, upload the finished image and checksum file from `./out/` to GitHub Releases manually.
-
-## Test the ISO
-
-### QEMU
-
-Minimal test:
-
-```bash
-qemu-system-x86_64 \
-  -enable-kvm \
-  -m 4096 \
-  -smp 4 \
-  -cdrom out/*.iso \
-  -boot d
-```
-
-If you want UEFI in QEMU, use your local OVMF setup.
-
-### virt-manager
-
-Recommended settings:
-
-- 4 GB RAM or more
-- 4 vCPUs if available
-- UEFI firmware if you want to test the EFI path
-- a 32 GB virtual disk or larger if you want to complete a real install
-
-## Calamares Layout
-
-Calamares is configured with a normal reliable flow:
-
-- welcome
-- locale
-- keyboard
-- partition
-- users
-- summary
-- install
-- finished
-
-Key files:
-
-- [calamares/settings.conf](calamares/settings.conf)
-- [calamares/modules](calamares/modules)
-- [calamares/branding/keskos](calamares/branding/keskos)
-
-The branding is themed for KeskOS:
-
-- black / charcoal background
-- orange highlights
-- VT323-style / monospace feel
-- custom slideshow
-- KeskOS logo and wallpaper
-
-## Live Desktop Behavior
-
-The live ISO boots into KDE Plasma and sets up:
-
-- SDDM autologin for `liveuser`
-- the KeskOS wallpaper
-- the centered `rofi` launcher
-- Quickshell HUD
-- Konsole with the `KeskOS` profile
-- the `Install KeskOS` desktop shortcut
-- the `Install KeskOS` menu/launcher entry
-
-The live user configuration is handled by:
-
-- [airootfs/root/customize_airootfs.sh](airootfs/root/customize_airootfs.sh)
-- [airootfs/usr/local/bin/keskos-configure-user](airootfs/usr/local/bin/keskos-configure-user)
-- [airootfs/usr/local/bin/keskos-session-start](airootfs/usr/local/bin/keskos-session-start)
-
-## Install-Time KeskOS Setup
-
-After Calamares lays down the base system, KeskOS-specific finishing is handled by:
-
-- [calamares/modules/postinstall.conf](calamares/modules/postinstall.conf)
-- [airootfs/usr/local/bin/keskos-postinstall-root](airootfs/usr/local/bin/keskos-postinstall-root)
-
-That post-install step:
-
-- removes the live-only `liveuser`
-- removes SDDM autologin for the live session
-- rewrites `/etc/os-release` from `KeskOS Live` to installed `KeskOS`
-- removes the live installer desktop shortcut
-- applies user defaults for the created desktop user
-
-## Where the Branding Lives
-
-Main branding and desktop assets come from:
-
-- [assets](assets)
-- [configs](configs)
-- [desktop](desktop)
-- [launcher](launcher)
-- [browser-home](browser-home)
-
-ISO-specific branding lives in:
-
-- [configs/sddm/keskos](configs/sddm/keskos)
-- [configs/look-and-feel/com.keskos.desktop](configs/look-and-feel/com.keskos.desktop)
-- [calamares/branding/keskos](calamares/branding/keskos)
-
-## Modify Packages
-
-Edit:
-
-- [packages.x86_64](packages.x86_64) for live ISO packages
-- [build.sh](build.sh) if you want to change AUR-built packages
-
-Right now `build.sh` builds these AUR packages into the local repo:
-
-- `calamares`
-- `kdotool-bin`
-
-If you change the package list, rebuild the ISO so the live image and installer stay in sync.
-
-## Repo Layout
-
-High-level layout:
-
-```text
-keskos/
-├── airootfs/
-├── assets/
-├── browser-home/
-├── build.sh
-├── calamares/
-├── configs/
-├── desktop/
-├── efiboot/
-├── grub/
-├── launcher/
-├── packages.x86_64
-├── pacman.conf
-├── profiledef.sh
-└── syslinux/
-```
-
-## Notes
-
-- `build.sh` must be run as a normal user, not root
-- it will call `sudo` only for the `mkarchiso` phase
-- `work/` and `out/` are ignored in git
-- the current build assumes a standard Arch host with network access so it can fetch AUR sources
-
-## Legacy Script Installer
-
-If you want the original script-driven setup back:
-
-```bash
-git checkout legacy-script-installer
-```
-
-That branch keeps the old installer state preserved under the commit:
-
-```text
-Preserve legacy script-based installer
 ```

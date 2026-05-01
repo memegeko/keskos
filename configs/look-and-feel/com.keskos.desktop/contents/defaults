@@ -1,0 +1,11 @@
+[kdeglobals][General]
+ColorScheme=KESKOS
+
+[kwinrc][org.kde.kdecoration2]
+library=org.kde.kwin.aurorae
+theme=kwin4_decoration_qml_keskos_split
+BorderSize=Normal
+BorderSizeAuto=false
+
+[kwinrc][Windows]
+BorderlessMaximizedWindows=false

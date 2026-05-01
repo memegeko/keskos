@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "KWin/Decoration",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "openai@example.com",
+                "Name": "OpenAI"
+            }
+        ],
+        "Description": "KeskOS industrial orange-on-black window decoration",
+        "Id": "kwin4_decoration_qml_keskos_split",
+        "License": "GPL-3.0-or-later",
+        "Name": "KeskOS SPLIT"
+    }
+}

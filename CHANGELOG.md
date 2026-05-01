@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-05-01
+
+### Release focus and ISO polish
+
+KeskOS now reads and behaves much more like a real operating system release rather than a repo for an old rice script workflow.
+
+### Added
+
+- official release-targeted ISO artifact:
+  - `keskos-2026.05.01-x86_64.iso`
+- seam-free custom QML KWin decoration theme
+- improved live Calamares debug stream and installer logging
+- more complete release screenshot set for desktop and installer flow
+
+### Changed
+
+- rewrote the README around the released ISO instead of the developer build tree
+- expanded the README to present KeskOS as a real OS with desktop, installer, branding, and workflow features
+- added a proper screenshot gallery for launcher, browser, terminal, lock screen, and installer steps
+- tuned the custom titlebar branding and window decoration polish
+- improved the Calamares install screen layout so it stays dark and readable during live install progress
+
+### Fixed
+
+- removed the visible seams/gaps from the custom window border by moving to a QML-based decoration path
+- fixed titlebar icon placement and sizing
+- fixed the Calamares install view white background problem
+- fixed overlapping live debug text in the installer slideshow
+- fixed live-session launcher subpage failures so blank pages fall back more safely
+- fixed multiple ISO/live-install issues in the Calamares and mkinitcpio pipeline
+
+### Notes
+
+- the README is now intended to support the GitHub Releases page first
+- the old script installer remains preserved on `legacy-script-installer`
+
 ## 2026-04-27
 
 ### Remove broken release automation

@@ -220,6 +220,9 @@ def open_browser(url: str | None = None) -> None:
     if shutil.which("librewolf"):
         launch_detached(["librewolf", target])
         return
+    if shutil.which("firefox"):
+        launch_detached(["firefox", target])
+        return
     open_path(target)
 
 

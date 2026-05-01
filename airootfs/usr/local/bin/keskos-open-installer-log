@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/keskos/calamares-installer.log"
+
+if [[ ! -f "$LOG_FILE" ]]; then
+  printf 'keskos-open-installer-log: no installer log found at %s\n' "$LOG_FILE" >&2
+  exit 1
+fi
+
+if command -v konsole >/dev/null 2>&1; then
+  exec konsole --hold -e bash -lc 'sed -n "1,320p" "$1"' bash "$LOG_FILE"
+fi
+
+if command -v less >/dev/null 2>&1; then
+  exec less "$LOG_FILE"
+fi
+
+exec cat "$LOG_FILE"

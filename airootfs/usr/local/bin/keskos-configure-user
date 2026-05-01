@@ -75,9 +75,11 @@ ensure_dirs() {
   mkdir -p \
     "$TARGET_HOME/.config/fastfetch" \
     "$TARGET_HOME/.config/keskos" \
+    "$TARGET_HOME/.config" \
     "$TARGET_HOME/.config/quickshell" \
     "$TARGET_HOME/.config/autostart" \
-    "$TARGET_HOME/.local/state/keskos"
+    "$TARGET_HOME/.local/state/keskos" \
+    "$TARGET_HOME/Desktop"
 }
 
 copy_default() {
@@ -145,6 +147,35 @@ install_autostart_entry() {
   fi
 }
 
+configure_default_apps() {
+  write_if_needed "$TARGET_HOME/.config/mimeapps.list" 644 <<'EOF'
+[Default Applications]
+x-scheme-handler/http=firefox.desktop
+x-scheme-handler/https=firefox.desktop
+text/html=firefox.desktop
+application/xhtml+xml=firefox.desktop
+inode/directory=dolphin.desktop
+EOF
+}
+
+install_live_desktop_shortcuts() {
+  local source_entry=""
+  local file_name=""
+
+  [[ "$TARGET_USER" == "liveuser" ]] || return 0
+
+  for source_entry in \
+    /usr/share/applications/install-keskos.desktop \
+    /usr/share/applications/keskos-launcher.desktop \
+    /usr/share/applications/keskos-browser.desktop \
+    /usr/share/applications/keskos-files.desktop
+  do
+    [[ -f "$source_entry" ]] || continue
+    file_name="$(basename "$source_entry")"
+    copy_default "$source_entry" "$TARGET_HOME/Desktop/$file_name" 755
+  done
+}
+
 write_application_shortcut() {
   local desktop_id="$1"
   local shortcut_value="$2"
@@ -187,6 +218,7 @@ configure_terminal() {
 
 configure_kde_visuals() {
   local kdeglobals="$TARGET_HOME/.config/kdeglobals"
+  local kwin_file="$TARGET_HOME/.config/kwinrc"
 
   [[ -n "$kwriteconfig_bin" ]] || return 0
 
@@ -196,6 +228,11 @@ configure_kde_visuals() {
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key smallestReadableFont "JetBrainsMono Nerd Font,8,-1,5,50,0,0,0,0,0"
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key menuFont "JetBrainsMono Nerd Font,10,-1,5,50,0,0,0,0,0"
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key toolBarFont "JetBrainsMono Nerd Font,10,-1,5,50,0,0,0,0,0"
+  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key library "org.kde.kwin.aurorae"
+  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key theme "kwin4_decoration_qml_keskos_split"
+  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key BorderSize "Normal"
+  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key BorderSizeAuto false
+  "$kwriteconfig_bin" --file "$kwin_file" --group Windows --key BorderlessMaximizedWindows false
 }
 
 configure_lockscreen_and_splash() {
@@ -273,6 +310,8 @@ main() {
   install_fastfetch_assets
   write_bash_overlay
   install_autostart_entry
+  configure_default_apps
+  install_live_desktop_shortcuts
   configure_terminal
   configure_kde_visuals
   configure_shortcuts
@@ -284,4 +323,3 @@ main() {
 }
 
 main "$@"
-

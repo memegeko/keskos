@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" version="1.1">
+  <g id="active-center">
+    <rect x="0.75" y="0.75" width="22.5" height="22.5" fill="#0a0907" stroke="#ce6a35" stroke-width="1.5"/>
+    <rect x="7.1" y="7.1" width="9.8" height="9.8" fill="none" stroke="#ce6a35" stroke-width="1.6"/>
+  </g>
+  <g id="inactive-center">
+    <rect x="0.75" y="0.75" width="22.5" height="22.5" fill="#080604" stroke="#845236" stroke-width="1.3"/>
+    <rect x="7.1" y="7.1" width="9.8" height="9.8" fill="none" stroke="#845236" stroke-width="1.5"/>
+  </g>
+  <g id="hover-center">
+    <rect x="0.75" y="0.75" width="22.5" height="22.5" fill="#1a0d08" stroke="#e77d41" stroke-width="1.6"/>
+    <rect x="7.1" y="7.1" width="9.8" height="9.8" fill="none" stroke="#f39457" stroke-width="1.7"/>
+  </g>
+  <g id="pressed-center">
+    <rect x="0.75" y="0.75" width="22.5" height="22.5" fill="#2b140c" stroke="#ce6a35" stroke-width="1.5"/>
+    <rect x="7.1" y="7.1" width="9.8" height="9.8" fill="none" stroke="#ffb17a" stroke-width="1.6"/>
+  </g>
+</svg>

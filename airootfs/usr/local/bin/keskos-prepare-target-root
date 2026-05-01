@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET_ROOT="${TARGET_ROOT:-/}"
+LIVE_BOOT_MOUNT="${LIVE_BOOT_MOUNT:-/run/archiso/bootmnt/keskos}"
+
+log() {
+  printf '[keskos-prepare-target] %s\n' "$1"
+}
+
+target_path() {
+  local relative_path="$1"
+  printf '%s%s\n' "${TARGET_ROOT%/}" "$relative_path"
+}
+
+write_standard_linux_preset() {
+  install -d -m 0755 "$(target_path /etc/mkinitcpio.d)"
+  cat >"$(target_path /etc/mkinitcpio.d/linux.preset)" <<'EOF'
+# mkinitcpio preset file for the 'linux' package
+
+#ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-linux"
+#ALL_kerneldest="/boot/vmlinuz-linux"
+
+PRESETS=('default')
+#PRESETS=('default' 'fallback')
+
+#default_config="/etc/mkinitcpio.conf"
+default_image="/boot/initramfs-linux.img"
+#default_uki="/efi/EFI/Linux/arch-linux.efi"
+#default_options="--splash /usr/share/systemd/bootctl/splash-arch.bmp"
+
+#fallback_config="/etc/mkinitcpio.conf"
+#fallback_image="/boot/initramfs-linux-fallback.img"
+#fallback_uki="/efi/EFI/Linux/arch-linux-fallback.efi"
+#fallback_options="-S autodetect"
+EOF
+}
+
+seed_kernel_image() {
+  local source_kernel="${LIVE_BOOT_MOUNT%/}/boot/x86_64/vmlinuz-linux"
+  local target_kernel
+
+  target_kernel="$(target_path /boot/vmlinuz-linux)"
+  install -d -m 0755 "$(dirname "$target_kernel")"
+
+  if [[ -r "$target_kernel" ]]; then
+    log "Target kernel image already exists at ${target_kernel}."
+    return 0
+  fi
+
+  if [[ -r "$source_kernel" ]]; then
+    log "Copying live kernel image into target boot directory."
+    install -m 0644 "$source_kernel" "$target_kernel"
+    return 0
+  fi
+
+  log "Live kernel image was not found at ${source_kernel}; initcpio may fail."
+}
+
+main() {
+  log "Preparing target root at ${TARGET_ROOT} for a standard mkinitcpio run."
+  rm -f "$(target_path /etc/mkinitcpio.conf.d/archiso.conf)"
+  write_standard_linux_preset
+  seed_kernel_image
+}
+
+main "$@"

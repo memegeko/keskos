@@ -2,9 +2,62 @@
 set -euo pipefail
 
 MODE="${1:-main}"
-LAUNCHER_ROOT="/usr/local/share/keskos/source/launcher"
 shift || true
+LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/keskos"
+WRAPPER_LOG="${LOG_DIR}/launcher-wrapper.log"
+LAUNCHER_ROOT=""
+
+find_launcher_root() {
+  local candidate=""
+  for candidate in \
+    "/usr/local/share/keskos/source/launcher" \
+    "/usr/share/keskos/source/launcher" \
+    "$HOME/.local/share/keskos/source/launcher"
+  do
+    if [[ -d "$candidate/kesk_runner" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+mode_prompt() {
+  case "$MODE" in
+    main) printf 'KESK >\n' ;;
+    apps) printf 'APPS >\n' ;;
+    windows) printf 'WINDOWS >\n' ;;
+    settings) printf 'SETTINGS >\n' ;;
+    power) printf 'POWER >\n' ;;
+    *) printf 'KESK >\n' ;;
+  esac
+}
+
+emit_status_row() {
+  local title="$1"
+  local subtitle="$2"
+  printf '\0prompt\x1f%s\n' "$(mode_prompt)"
+  printf '\0markup-rows\x1ftrue\n'
+  printf '%s\0display\x1f%s <span alpha='\''55%%'\''>[Status] %s</span>\x1fnonselectable\x1ftrue\x1fpermanent\x1ftrue\n' \
+    "$title" "$title" "$subtitle"
+}
+
+mkdir -p "$LOG_DIR"
+LAUNCHER_ROOT="$(find_launcher_root || true)"
+
+if [[ -z "$LAUNCHER_ROOT" ]]; then
+  {
+    printf '[%s] launcher root not found for mode=%s argv=%q\n' "$(date -Is)" "$MODE" "$*"
+  } >>"$WRAPPER_LOG"
+  emit_status_row "Launcher backend missing" "Check ~/.cache/keskos/launcher-wrapper.log"
+  exit 0
+fi
 
 export PYTHONPATH="${LAUNCHER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
-exec python3 -m kesk_runner script --mode "$MODE" --entry-text "${*:-}"
 
+if ! python3 -m kesk_runner script --mode "$MODE" --entry-text "${*:-}" 2>>"$WRAPPER_LOG"; then
+  {
+    printf '[%s] launcher backend failed mode=%s root=%s entry=%q\n' "$(date -Is)" "$MODE" "$LAUNCHER_ROOT" "${*:-}"
+  } >>"$WRAPPER_LOG"
+  emit_status_row "Launcher backend failed" "Check ~/.cache/keskos/launcher-wrapper.log"
+fi

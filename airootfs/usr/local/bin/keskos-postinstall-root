@@ -5,6 +5,34 @@ log() {
   printf '[keskos-postinstall] %s\n' "$1"
 }
 
+write_sddm_login_defaults() {
+  local target_user="$1"
+  local theme_conf="/usr/share/sddm/themes/keskos/theme.conf"
+
+  [[ -n "$target_user" ]] || return 0
+
+  mkdir -p /etc/sddm.conf.d /var/lib/sddm
+  cat >/etc/sddm.conf.d/keskos-login.conf <<'EOF'
+[Users]
+RememberLastUser=true
+RememberLastSession=true
+EOF
+
+  cat >/var/lib/sddm/state.conf <<EOF
+[Last]
+User=${target_user}
+Session=plasma.desktop
+EOF
+
+  if [[ -f "$theme_conf" ]]; then
+    if grep -q '^defaultUser=' "$theme_conf"; then
+      sed -i "s/^defaultUser=.*/defaultUser=${target_user}/" "$theme_conf"
+    else
+      printf '\ndefaultUser=%s\n' "$target_user" >>"$theme_conf"
+    fi
+  fi
+}
+
 detect_target_user() {
   awk -F: '
     $1 != "liveuser" &&
@@ -37,6 +65,7 @@ EOF
 cleanup_live_bits() {
   rm -f /etc/sudoers.d/10-liveuser
   rm -f /etc/sddm.conf.d/keskos-live.conf
+  rm -f /etc/mkinitcpio.conf.d/archiso.conf
   rm -f /usr/share/applications/install-keskos.desktop
   rm -f /etc/skel/Desktop/Install\ KeskOS.desktop
   mkdir -p /usr/local/share/applications
@@ -52,6 +81,10 @@ EOF
     userdel -r liveuser >/dev/null 2>&1 || true
   else
     rm -rf /home/liveuser
+  fi
+
+  if command -v pacman >/dev/null 2>&1 && pacman -Qq mkinitcpio-archiso >/dev/null 2>&1; then
+    pacman -Rdd --noconfirm mkinitcpio-archiso >/dev/null 2>&1 || true
   fi
 }
 
@@ -74,6 +107,7 @@ main() {
   cleanup_live_bits
   target_user="$(detect_target_user || true)"
   if [[ -n "$target_user" ]]; then
+    write_sddm_login_defaults "$target_user"
     log "Configuring installed user defaults for ${target_user}"
     configure_target_user "$target_user"
   else

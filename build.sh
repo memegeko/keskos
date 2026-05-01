@@ -2,13 +2,15 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORK_ROOT="${REPO_ROOT}/work"
 OUT_DIR="${REPO_ROOT}/out"
+SAFE_BUILD_ROOT="/tmp/keskos-build-${UID}"
+WORK_ROOT="${SAFE_BUILD_ROOT}/work"
 STAGE_DIR="${WORK_ROOT}/profile"
 ARCHISO_WORK_DIR="${WORK_ROOT}/archiso"
 LOCAL_REPO_DIR="${WORK_ROOT}/localrepo/x86_64"
 GENERATED_PACMAN_CONF="${WORK_ROOT}/pacman.conf"
-AUR_BUILD_ROOT="${WORK_ROOT}/aur"
+AUR_BUILD_ROOT="${SAFE_BUILD_ROOT}/aur"
+AUR_PKGDEST="${SAFE_BUILD_ROOT}/pkgdest"
 SOURCE_DATE="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 ISO_VERSION="${KESKOS_ISO_VERSION:-$(date --date="@${SOURCE_DATE}" +%Y.%m.%d)}"
 AUR_PACKAGES=(calamares kdotool-bin)
@@ -26,9 +28,23 @@ fail() {
   exit 1
 }
 
+cleanup_safe_build_root() {
+  if [[ -e "$SAFE_BUILD_ROOT" ]]; then
+    log "Cleaning previous temporary build root..."
+    sudo rm -rf "$SAFE_BUILD_ROOT"
+  fi
+}
+
+restore_build_root_ownership() {
+  if [[ -e "$SAFE_BUILD_ROOT" ]]; then
+    sudo chown -R "$(id -u):$(id -g)" "$SAFE_BUILD_ROOT" 2>/dev/null || true
+  fi
+}
+
 require_command() {
   local command_name="$1"
-  command -v "$command_name" >/dev/null 2>&1 || fail "Missing required command: ${command_name}"
+  local package_hint="${2:-$1}"
+  command -v "$command_name" >/dev/null 2>&1 || fail "Missing required command: ${command_name}. Install it with: sudo pacman -S --needed ${package_hint}"
 }
 
 check_arch_host() {
@@ -41,38 +57,46 @@ check_arch_host() {
 
 check_dependencies() {
   local deps=(
-    mkarchiso
-    makepkg
-    repo-add
-    grub-install
-    syslinux
-    curl
-    git
-    awk
-    sed
-    install
-    bsdtar
-    sudo
+    "mkarchiso:archiso"
+    "makepkg:base-devel"
+    "repo-add:pacman-contrib"
+    "grub-install:grub"
+    "syslinux:syslinux"
+    "curl:curl"
+    "git:git"
+    "awk:gawk"
+    "sed:sed"
+    "install:coreutils"
+    "bsdtar:libarchive"
+    "sudo:sudo"
   )
+  local dep
+  local command_name
+  local package_hint
 
   for dep in "${deps[@]}"; do
-    require_command "$dep"
+    command_name="${dep%%:*}"
+    package_hint="${dep#*:}"
+    require_command "$command_name" "$package_hint"
   done
 }
 
 prepare_workdirs() {
-  mkdir -p "$WORK_ROOT" "$OUT_DIR" "$AUR_BUILD_ROOT" "$LOCAL_REPO_DIR"
-  rm -rf "$STAGE_DIR" "$ARCHISO_WORK_DIR" "$LOCAL_REPO_DIR"
+  mkdir -p "$OUT_DIR"
+  cleanup_safe_build_root
   mkdir -p "$STAGE_DIR" "$ARCHISO_WORK_DIR"
   mkdir -p "$LOCAL_REPO_DIR"
+  mkdir -p "$AUR_BUILD_ROOT" "$AUR_PKGDEST"
+
+  log "Using temporary build root: ${SAFE_BUILD_ROOT}"
+  if [[ "$REPO_ROOT" == *" "* ]]; then
+    log "Repo path contains spaces; staging Archiso and AUR builds outside the repo to avoid makepkg/CMake and chroot path issues."
+  fi
 }
 
 build_aur_package() {
   local package_name="$1"
   local package_dir="${AUR_BUILD_ROOT}/${package_name}"
-  local pkgdest="${WORK_ROOT}/pkgdest"
-
-  mkdir -p "$pkgdest"
 
   if [[ ! -d "$package_dir/.git" ]]; then
     log "Cloning AUR package ${package_name}..."
@@ -86,10 +110,10 @@ build_aur_package() {
   log "Building ${package_name} for the local ISO repository..."
   (
     cd "$package_dir"
-    PKGDEST="${pkgdest}" makepkg --syncdeps --needed --noconfirm --cleanbuild --clean
+    PKGDEST="${AUR_PKGDEST}" makepkg --syncdeps --needed --noconfirm --cleanbuild --clean
   )
 
-  find "$pkgdest" -maxdepth 1 -type f -name "${package_name}-*.pkg.tar.*" -exec cp -f {} "$LOCAL_REPO_DIR/" \;
+  find "$AUR_PKGDEST" -maxdepth 1 -type f -name "${package_name}-*.pkg.tar.*" -exec cp -f {} "$LOCAL_REPO_DIR/" \;
 }
 
 refresh_local_repo() {
@@ -118,6 +142,7 @@ stage_profile_basics() {
 
 stage_source_tree() {
   local source_root="${STAGE_DIR}/airootfs/usr/local/share/keskos/source"
+  rm -rf "$source_root"
   mkdir -p "$source_root"
 
   cp -a "${REPO_ROOT}/assets" "$source_root/"
@@ -125,17 +150,24 @@ stage_source_tree() {
   cp -a "${REPO_ROOT}/launcher" "$source_root/"
   cp -a "${REPO_ROOT}/desktop" "$source_root/"
   cp -a "${REPO_ROOT}/browser-home" "$source_root/"
-  install -m 644 "${REPO_ROOT}/spinner.png" "$source_root/spinner.png"
-  install -m 644 "${REPO_ROOT}/kesk_os_logo_text.png" "$source_root/kesk_os_logo_text.png"
-  install -m 644 "${REPO_ROOT}/kesk_os_logo-removebg.png" "$source_root/kesk_os_logo-removebg.png"
+  install -m 644 "${REPO_ROOT}/assets/spinner.png" "$source_root/spinner.png"
+  install -m 644 "${REPO_ROOT}/assets/kesk_os_logo_text.png" "$source_root/kesk_os_logo_text.png"
+  install -m 644 "${REPO_ROOT}/assets/kesk_os_logo-removebg.png" "$source_root/kesk_os_logo-removebg.png"
 }
 
 stage_live_system_assets() {
   local root="${STAGE_DIR}/airootfs"
 
+  rm -rf \
+    "${root}/usr/share/keskos/browser-home" \
+    "${root}/usr/share/calamares/branding/keskos" \
+    "${root}/etc/calamares/modules"
+
   mkdir -p \
     "${root}/usr/share/konsole" \
     "${root}/usr/share/color-schemes" \
+    "${root}/usr/share/aurorae/themes" \
+    "${root}/usr/share/kwin/decorations" \
     "${root}/usr/share/backgrounds/keskos" \
     "${root}/usr/share/plasma/look-and-feel/com.keskos.desktop" \
     "${root}/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/assets" \
@@ -147,6 +179,8 @@ stage_live_system_assets() {
   install -m 644 "${REPO_ROOT}/configs/konsole/KeskOS.colorscheme" "${root}/usr/share/konsole/KeskOS.colorscheme"
   install -m 644 "${REPO_ROOT}/configs/konsole/KeskOS.profile" "${root}/usr/share/konsole/KeskOS.profile"
   install -m 644 "${REPO_ROOT}/configs/kde/keskos.colors" "${root}/usr/share/color-schemes/KESKOS.colors"
+  cp -a "${REPO_ROOT}/configs/aurorae/themes/KeskOS-SPLIT" "${root}/usr/share/aurorae/themes/"
+  cp -a "${REPO_ROOT}/configs/kwin/decorations/kwin4_decoration_qml_keskos_split" "${root}/usr/share/kwin/decorations/"
 
   install -m 644 "${REPO_ROOT}/assets/wallpaper.svg" "${root}/usr/share/backgrounds/keskos/wallpaper.svg"
   install -m 644 "${REPO_ROOT}/assets/wallpaper-1920x1080.png" "${root}/usr/share/backgrounds/keskos/wallpaper-1920x1080.png"
@@ -162,7 +196,7 @@ stage_live_system_assets() {
   install -m 644 "${REPO_ROOT}/configs/sddm/keskos/metadata.desktop" "${root}/usr/share/sddm/themes/keskos/metadata.desktop"
   install -m 644 "${REPO_ROOT}/configs/sddm/keskos/theme.conf" "${root}/usr/share/sddm/themes/keskos/theme.conf"
   install -m 644 "${REPO_ROOT}/assets/wallpaper-2560x1440.png" "${root}/usr/share/sddm/themes/keskos/assets/background.png"
-  install -m 644 "${REPO_ROOT}/kesk_os_logo_text.png" "${root}/usr/share/sddm/themes/keskos/assets/logo.png"
+  install -m 644 "${REPO_ROOT}/assets/kesk_os_logo_text.png" "${root}/usr/share/sddm/themes/keskos/assets/logo.png"
 
   cp -a "${REPO_ROOT}/browser-home/." "${root}/usr/share/keskos/browser-home/"
 
@@ -193,6 +227,7 @@ run_mkarchiso() {
     -w "${ARCHISO_WORK_DIR}" \
     -o "${OUT_DIR}" \
     "${STAGE_DIR}"
+  restore_build_root_ownership
 }
 
 main() {

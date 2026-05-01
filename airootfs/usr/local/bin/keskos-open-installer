@@ -1,37 +1,157 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/keskos"
+LOG_FILE="${LOG_DIR}/calamares-installer.log"
+QT_QUICK_BACKEND_VALUE="${QT_QUICK_BACKEND:-software}"
+CALAMARES_MODULES=(
+  /etc/calamares/modules/unpackfs.conf
+  /etc/calamares/modules/prepare-target.conf
+  /etc/calamares/modules/bootloader.conf
+  /etc/calamares/modules/postinstall.conf
+)
+
+open_log_viewer() {
+  local message="$1"
+
+  if command -v konsole >/dev/null 2>&1; then
+    konsole --hold -e bash -lc '
+      log_file="$1"
+      printf "KeskOS installer debug log\n"
+      printf "==========================\n\n"
+      printf "%s\n\n" "$2"
+      if [[ -f "$log_file" ]]; then
+        sed -n "1,260p" "$log_file"
+      else
+        printf "Log file not found: %s\n" "$log_file"
+      fi
+    ' bash "$LOG_FILE" "$message" >/dev/null 2>&1 &
+    return
+  fi
+
+  if command -v xdg-open >/dev/null 2>&1 && [[ -f "$LOG_FILE" ]]; then
+    xdg-open "$LOG_FILE" >/dev/null 2>&1 &
+  fi
+}
+
+show_failure_dialog() {
+  local status="$1"
+  local message="Calamares exited with status ${status}. Full debug log saved to:\n${LOG_FILE}"
+
+  if command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "KeskOS Installer Debug" --error "$message" >/dev/null 2>&1 || true
+  else
+    printf '%b\n' "$message" >&2
+  fi
+
+  open_log_viewer "$message"
+}
+
+write_debug_prelude() {
+  mkdir -p "$LOG_DIR"
+
+  {
+    printf '=== KeskOS Installer Debug ===\n'
+    date -Is
+    printf '\n'
+    printf -- '--- Environment ---\n'
+    printf 'user=%s uid=%s gid=%s\n' "$(id -un)" "$(id -u)" "$(id -g)"
+    printf 'pwd=%s\n' "$PWD"
+    printf 'display=%s\n' "${DISPLAY:-}"
+    printf 'wayland=%s\n' "${WAYLAND_DISPLAY:-}"
+    printf 'xauthority=%s\n' "${XAUTHORITY:-}"
+    printf 'runtime=%s\n' "${XDG_RUNTIME_DIR:-}"
+    printf 'qt_qpa_platform=%s\n' "${QT_QPA_PLATFORM:-wayland}"
+    printf 'qt_quick_backend=%s\n' "${QT_QUICK_BACKEND_VALUE}"
+    printf '\n'
+    printf -- '--- System ---\n'
+    uname -a || true
+    printf '\n'
+    printf -- '--- Calamares version ---\n'
+    calamares --version 2>&1 || true
+    printf '\n'
+    printf -- '--- Package versions ---\n'
+    pacman -Q calamares linux mkinitcpio mkinitcpio-archiso 2>&1 || true
+    printf '\n'
+    printf -- '--- Archiso payload ---\n'
+    ls -lah /run/archiso/bootmnt/keskos/x86_64 2>&1 || true
+    printf '\n'
+    printf -- '--- mkinitcpio live files ---\n'
+    find /etc -maxdepth 3 \( -path '*/mkinitcpio*' -o -name '*archiso*' \) 2>&1 | sort || true
+    printf '\n'
+    for config_path in \
+      /etc/mkinitcpio.d/linux.preset \
+      /etc/mkinitcpio.conf \
+      /etc/mkinitcpio.conf.d/archiso.conf
+    do
+      printf -- '--- %s ---\n' "$config_path"
+      sed -n '1,220p' "$config_path" 2>&1 || true
+      printf '\n'
+    done
+    printf -- '--- /etc/calamares/settings.conf ---\n'
+    sed -n '1,220p' /etc/calamares/settings.conf 2>&1 || true
+    printf '\n'
+    for config_path in "${CALAMARES_MODULES[@]}"; do
+      printf -- '--- %s ---\n' "$config_path"
+      sed -n '1,220p' "$config_path" 2>&1 || true
+      printf '\n'
+    done
+    printf '=== Launching Calamares ===\n'
+  } >"$LOG_FILE"
+}
+
+run_installer() {
+  local -a cmd=("$@")
+
+  if "${cmd[@]}" >>"$LOG_FILE" 2>&1; then
+    return 0
+  fi
+
+  local status=$?
+  {
+    printf '\n=== Calamares exited with status %s ===\n' "$status"
+  } >>"$LOG_FILE"
+  show_failure_dialog "$status"
+  return "$status"
+}
+
 if ! command -v calamares >/dev/null 2>&1; then
   printf 'keskos-open-installer: calamares is not installed in this environment\n' >&2
   exit 1
 fi
 
+write_debug_prelude
+
 if [[ ${EUID} -eq 0 ]]; then
-  exec calamares -d
+  run_installer env QT_QUICK_BACKEND="${QT_QUICK_BACKEND_VALUE}" calamares -D6
+  exit $?
 fi
 
 if command -v sudo >/dev/null 2>&1; then
-  exec sudo -E env \
+  run_installer sudo -E env \
     DISPLAY="${DISPLAY:-}" \
     XAUTHORITY="${XAUTHORITY:-}" \
     WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
     XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
     DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
     QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}" \
-    calamares -d
+    QT_QUICK_BACKEND="${QT_QUICK_BACKEND_VALUE}" \
+    calamares -D6
+  exit $?
 fi
 
 if command -v pkexec >/dev/null 2>&1; then
-  exec pkexec env \
+  run_installer pkexec env \
     DISPLAY="${DISPLAY:-}" \
     XAUTHORITY="${XAUTHORITY:-}" \
     WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
     XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
     DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
     QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}" \
-    calamares -d
+    QT_QUICK_BACKEND="${QT_QUICK_BACKEND_VALUE}" \
+    calamares -D6
+  exit $?
 fi
 
 printf 'keskos-open-installer: neither sudo nor pkexec was available\n' >&2
 exit 1
-

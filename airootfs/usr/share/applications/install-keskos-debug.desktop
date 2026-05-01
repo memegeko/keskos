@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KeskOS Installer Debug Log
+GenericName=Installer Debug
+Comment=Open the latest Calamares debug log
+Exec=/usr/local/bin/keskos-open-installer-log
+Icon=text-x-log
+Terminal=false
+StartupNotify=true
+Categories=System;Utility;
+Keywords=install;installer;debug;log;calamares;keskos;

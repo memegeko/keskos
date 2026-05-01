@@ -1,9 +1,9 @@
 ---
 componentName: keskos
 welcomeStyleCalamares: false
-welcomeExpandingLogo: true
+welcomeExpandingLogo: false
 windowExpanding: normal
-windowSize: 980px,640px
+windowSize: 1440px,860px
 windowPlacement: center
 sidebar: widget
 navigation: widget
@@ -11,10 +11,10 @@ navigation: widget
 strings:
   productName: "KeskOS"
   shortProductName: "KeskOS"
-  version: "Arch KDE"
-  shortVersion: "Arch KDE"
-  versionedName: "KeskOS Arch Edition"
-  shortVersionedName: "KeskOS"
+  version: "Installer Console"
+  shortVersion: "Installer"
+  versionedName: "KeskOS Installer"
+  shortVersionedName: "KeskOS Installer"
   bootloaderEntryName: "KeskOS"
   productUrl: "https://github.com/memegeko/keskos"
   supportUrl: "https://github.com/memegeko/keskos/issues"
@@ -29,9 +29,9 @@ images:
   productWelcome: "logo.png"
 
 style:
-  SidebarBackground: "#090605"
+  SidebarBackground: "#070504"
   SidebarText: "#e7c9b3"
-  SidebarTextCurrent: "#090605"
+  SidebarTextCurrent: "#050403"
   SidebarBackgroundCurrent: "#ce6a35"
 
 slideshow: "show.qml"
