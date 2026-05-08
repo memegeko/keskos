@@ -51,6 +51,41 @@ format_kib() {
   fi
 }
 
+relative_last_used() {
+  local timestamp_real="${1:-}"
+  local epoch="" now="" delta=0 days=0
+
+  if [[ -z "$timestamp_real" || "$timestamp_real" == "--" ]]; then
+    printf 'Saved network\n'
+    return 0
+  fi
+
+  epoch="$(date -d "$timestamp_real" +%s 2>/dev/null || true)"
+  if [[ -z "$epoch" ]]; then
+    printf 'Saved network\n'
+    return 0
+  fi
+
+  now="$(date +%s)"
+  delta=$(( now - epoch ))
+  if (( delta < 0 )); then
+    delta=0
+  fi
+
+  if (( delta < 3600 )); then
+    printf 'Last used just now\n'
+  elif (( delta < 86400 )); then
+    printf 'Last used today\n'
+  elif (( delta < 172800 )); then
+    printf 'Last used yesterday\n'
+  elif (( delta < 604800 )); then
+    days=$(( delta / 86400 ))
+    printf 'Last used %s days ago\n' "$days"
+  else
+    printf 'Last used %s\n' "$(date -d "@$epoch" '+%b %-d' 2>/dev/null || printf 'previously')"
+  fi
+}
+
 title_case() {
   local raw="${1:-}"
   awk -v text="$raw" 'BEGIN {
@@ -216,6 +251,659 @@ network_speeds() {
   printf '%s %s\n' "$down" "$up"
 }
 
+cpu_percent_value() {
+  local state_file="${CACHE_DIR}/qs-cpu.state"
+  local user nice system idle iowait irq softirq steal guest guest_nice
+  local total idle_all last_total last_idle delta_total delta_idle usage
+
+  read -r _ user nice system idle iowait irq softirq steal guest guest_nice </proc/stat
+  total=$(( user + nice + system + idle + iowait + irq + softirq + steal ))
+  idle_all=$(( idle + iowait ))
+
+  if [[ -r "$state_file" ]]; then
+    read -r last_total last_idle <"$state_file" || true
+  fi
+
+  if [[ -z "${last_total:-}" || -z "${last_idle:-}" ]]; then
+    last_total="$total"
+    last_idle="$idle_all"
+  fi
+
+  delta_total=$(( total - last_total ))
+  delta_idle=$(( idle_all - last_idle ))
+
+  if (( delta_total <= 0 )); then
+    usage=0
+  else
+    usage=$(( (100 * (delta_total - delta_idle)) / delta_total ))
+  fi
+
+  printf '%s %s\n' "$total" "$idle_all" >"$state_file"
+  printf '%s\n' "$usage"
+}
+
+cpu_core_percent_json() {
+  local state_file="${CACHE_DIR}/qs-cpu-cores.state"
+  local temp_state
+  local -A previous_total=()
+  local -A previous_idle=()
+  local -a usages=()
+  local cpu="" user="" nice="" system="" idle="" iowait="" irq="" softirq="" steal="" guest="" guest_nice=""
+  local total=0 idle_all=0 delta_total=0 delta_idle=0 usage=0
+
+  if [[ -r "$state_file" ]]; then
+    while read -r cpu total idle_all; do
+      [[ -n "$cpu" ]] || continue
+      previous_total["$cpu"]="$total"
+      previous_idle["$cpu"]="$idle_all"
+    done <"$state_file"
+  fi
+
+  temp_state="$(mktemp)"
+
+  while read -r cpu user nice system idle iowait irq softirq steal guest guest_nice; do
+    total=$(( user + nice + system + idle + iowait + irq + softirq + steal ))
+    idle_all=$(( idle + iowait ))
+
+    if [[ -n "${previous_total[$cpu]:-}" && -n "${previous_idle[$cpu]:-}" ]]; then
+      delta_total=$(( total - previous_total[$cpu] ))
+      delta_idle=$(( idle_all - previous_idle[$cpu] ))
+
+      if (( delta_total <= 0 )); then
+        usage=0
+      else
+        usage=$(( (100 * (delta_total - delta_idle)) / delta_total ))
+      fi
+    else
+      usage=0
+    fi
+
+    usages+=("$usage")
+    printf '%s %s %s\n' "$cpu" "$total" "$idle_all" >>"$temp_state"
+  done < <(awk '/^cpu[0-9]+ / { print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 }' /proc/stat 2>/dev/null)
+
+  mv "$temp_state" "$state_file"
+
+  printf '%s\n' "${usages[@]}" | jq -Rsc '
+    split("\n")
+    | map(select(length > 0) | tonumber)
+  '
+}
+
+cpu_model_name() {
+  awk -F: '
+    /model name/ {
+      value=$2
+      sub(/^[[:space:]]+/, "", value)
+      print value
+      exit
+    }
+  ' /proc/cpuinfo 2>/dev/null
+}
+
+cpu_core_count() {
+  local count="0"
+
+  if command -v nproc >/dev/null 2>&1; then
+    count="$(nproc 2>/dev/null || printf '0')"
+  else
+    count="$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || printf '0')"
+  fi
+
+  printf '%s\n' "${count:-0}"
+}
+
+cpu_load_values() {
+  awk '{ print $1, $2, $3 }' /proc/loadavg 2>/dev/null || printf '0.00 0.00 0.00\n'
+}
+
+cpu_frequency_ghz() {
+  local khz=""
+
+  if [[ -r /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq ]]; then
+    khz="$(< /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq)"
+  elif [[ -r /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq ]]; then
+    khz="$(< /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq)"
+  fi
+
+  if [[ "$khz" =~ ^[0-9]+$ ]] && (( khz > 0 )); then
+    awk -v value="$khz" 'BEGIN { printf "%.2f GHz\n", value / 1000000 }'
+  else
+    printf 'n/a\n'
+  fi
+}
+
+cpu_temperature_c() {
+  local temp_file=""
+  local temp_raw=""
+
+  for temp_file in \
+    /sys/class/thermal/thermal_zone*/temp \
+    /sys/devices/platform/coretemp.0/hwmon/hwmon*/temp1_input \
+    /sys/class/hwmon/hwmon*/temp1_input
+  do
+    [[ -r "$temp_file" ]] || continue
+    temp_raw="$(<"$temp_file")"
+    if [[ "$temp_raw" =~ ^[0-9]+$ ]] && (( temp_raw > 0 )); then
+      if (( temp_raw > 1000 )); then
+        awk -v value="$temp_raw" 'BEGIN { printf "%.1f C\n", value / 1000 }'
+      else
+        printf '%s C\n' "$temp_raw"
+      fi
+      return 0
+    fi
+  done
+
+  printf 'n/a\n'
+}
+
+memory_percent_value() {
+  local total_kib available_kib used_kib
+
+  total_kib="$(awk '/MemTotal:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
+  available_kib="$(awk '/MemAvailable:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
+  used_kib=$(( total_kib - available_kib ))
+
+  if (( total_kib <= 0 )); then
+    printf '0\n'
+    return 0
+  fi
+
+  printf '%s\n' $(( used_kib * 100 / total_kib ))
+}
+
+glyph_for_value() {
+  local value="${1:-0}"
+
+  if (( value < 13 )); then
+    printf '▁'
+  elif (( value < 26 )); then
+    printf '▂'
+  elif (( value < 39 )); then
+    printf '▃'
+  elif (( value < 52 )); then
+    printf '▄'
+  elif (( value < 65 )); then
+    printf '▅'
+  elif (( value < 78 )); then
+    printf '▆'
+  elif (( value < 91 )); then
+    printf '▇'
+  else
+    printf '█'
+  fi
+}
+
+history_glyph() {
+  local values_json="${1:-[]}"
+  local glyphs=""
+  local value=""
+
+  while read -r value; do
+    glyphs+=$(glyph_for_value "$value")
+  done < <(jq -r '.[-4:] | .[]' <<<"$values_json" 2>/dev/null)
+
+  printf '%s\n' "${glyphs:-....}"
+}
+
+app_running_json() {
+  local terminal=false
+  local files=false
+  local browser=false
+  local settings=false
+
+  pgrep -x konsole >/dev/null 2>&1 && terminal=true
+  pgrep -x dolphin >/dev/null 2>&1 && files=true
+  if pgrep -x firefox >/dev/null 2>&1 || pgrep -x librewolf >/dev/null 2>&1; then
+    browser=true
+  fi
+  pgrep -x systemsettings >/dev/null 2>&1 && settings=true
+
+  jq -nc \
+    --argjson terminal "$terminal" \
+    --argjson files "$files" \
+    --argjson browser "$browser" \
+    --argjson settings "$settings" \
+    '{terminal:$terminal,files:$files,browser:$browser,settings:$settings}'
+}
+
+media_player_candidates() {
+  command -v playerctl >/dev/null 2>&1 || return 0
+  playerctl -l 2>/dev/null | awk '!seen[$0]++'
+}
+
+select_media_player() {
+  local player="" status="" paused_player=""
+
+  while read -r player; do
+    [[ -n "$player" ]] || continue
+    status="$(playerctl -p "$player" status 2>/dev/null || true)"
+    case "$status" in
+      Playing)
+        printf '%s\n' "$player"
+        return 0
+        ;;
+      Paused)
+        if [[ -z "$paused_player" ]]; then
+          paused_player="$player"
+        fi
+        ;;
+    esac
+  done < <(media_player_candidates)
+
+  if [[ -n "$paused_player" ]]; then
+    printf '%s\n' "$paused_player"
+    return 0
+  fi
+
+  return 1
+}
+
+media_metadata_value() {
+  local player="$1"
+  local format="$2"
+
+  playerctl -p "$player" metadata --format "$format" 2>/dev/null | head -n 1 || true
+}
+
+sniff_image_extension() {
+  local file_path="$1"
+  local header=""
+
+  header="$(xxd -p -l 16 "$file_path" 2>/dev/null | tr -d '\n' || true)"
+
+  case "$header" in
+    89504e470d0a1a0a*)
+      printf 'png\n'
+      ;;
+    ffd8ff*)
+      printf 'jpg\n'
+      ;;
+    47494638*)
+      printf 'gif\n'
+      ;;
+    52494646????????57454250*)
+      printf 'webp\n'
+      ;;
+    *)
+      printf 'img\n'
+      ;;
+  esac
+}
+
+cached_media_art_url() {
+  local source_url="${1:-}"
+  local cache_prefix="${CACHE_DIR}/media-art"
+  local cache_meta="${CACHE_DIR}/media-art.url"
+  local cached_path="" previous_url="" temp_file="" extension=""
+
+  [[ -n "$source_url" ]] || return 0
+
+  if [[ -r "$cache_meta" ]]; then
+    previous_url="$(<"$cache_meta")"
+  fi
+
+  for extension in jpg png gif webp img; do
+    if [[ -f "${cache_prefix}.${extension}" ]]; then
+      cached_path="${cache_prefix}.${extension}"
+      break
+    fi
+  done
+
+  if [[ "$source_url" == "$previous_url" && -n "$cached_path" && -f "$cached_path" ]]; then
+    printf 'file://%s\n' "$cached_path"
+    return 0
+  fi
+
+  temp_file="$(mktemp)"
+
+  if [[ "$source_url" == file://* ]]; then
+    local local_path="${source_url#file://}"
+    if [[ ! -r "$local_path" ]]; then
+      rm -f "$temp_file"
+      printf '%s\n' "$source_url"
+      return 0
+    fi
+    cp -f "$local_path" "$temp_file"
+  elif [[ "$source_url" =~ ^https?:// ]]; then
+    if ! curl -fsSL --max-time 10 "$source_url" -o "$temp_file" >/dev/null 2>&1; then
+      rm -f "$temp_file"
+      printf '%s\n' "$source_url"
+      return 0
+    fi
+  elif [[ -r "$source_url" ]]; then
+    cp -f "$source_url" "$temp_file"
+  else
+    rm -f "$temp_file"
+    printf '%s\n' "$source_url"
+    return 0
+  fi
+
+  extension="$(sniff_image_extension "$temp_file")"
+  cached_path="${cache_prefix}.${extension}"
+  mv -f "$temp_file" "$cached_path"
+  printf '%s\n' "$source_url" >"$cache_meta"
+  printf 'file://%s\n' "$cached_path"
+}
+
+seconds_to_clock() {
+  local raw_value="${1:-0}"
+  local total=0
+  local hours=0
+  local minutes=0
+  local seconds=0
+
+  if [[ "$raw_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    total="${raw_value%.*}"
+  fi
+
+  if [[ -z "$total" || ! "$total" =~ ^[0-9]+$ ]]; then
+    total=0
+  fi
+
+  hours=$(( total / 3600 ))
+  minutes=$(( (total % 3600) / 60 ))
+  seconds=$(( total % 60 ))
+
+  if (( hours > 0 )); then
+    printf '%d:%02d:%02d\n' "$hours" "$minutes" "$seconds"
+  else
+    printf '%d:%02d\n' "$minutes" "$seconds"
+  fi
+}
+
+print_media_menu() {
+  local player="" status="STOPPED" title="No active player" artist="Start playback in a media app"
+  local album="" art_url="" length_raw="" length_seconds=0 position_raw="0"
+  local progress_percent=0 volume_raw="0" volume_percent=0 length_text="0:00" position_text="0:00"
+  local active=false player_name="PLAYER" status_label="IDLE"
+
+  if player="$(select_media_player || true)" && [[ -n "$player" ]]; then
+    active=true
+    player_name="$player"
+    status="$(playerctl -p "$player" status 2>/dev/null || printf 'Stopped')"
+    title="$(media_metadata_value "$player" '{{xesam:title}}')"
+    artist="$(media_metadata_value "$player" '{{xesam:artist}}')"
+    album="$(media_metadata_value "$player" '{{xesam:album}}')"
+    art_url="$(media_metadata_value "$player" '{{mpris:artUrl}}')"
+    art_url="$(cached_media_art_url "$art_url")"
+    length_raw="$(media_metadata_value "$player" '{{mpris:length}}')"
+    position_raw="$(playerctl -p "$player" position 2>/dev/null || printf '0')"
+    volume_raw="$(playerctl -p "$player" volume 2>/dev/null || printf '0')"
+
+    [[ -n "$title" ]] || title="Unknown Track"
+    [[ -n "$artist" ]] || artist="$player_name"
+
+    if [[ "$length_raw" =~ ^[0-9]+$ ]] && (( length_raw > 0 )); then
+      length_seconds=$(( length_raw / 1000000 ))
+    fi
+
+    if [[ "$length_seconds" =~ ^[0-9]+$ ]] && (( length_seconds > 0 )) && [[ "$position_raw" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+      progress_percent="$(awk -v pos="$position_raw" -v total="$length_seconds" 'BEGIN {
+        if (total <= 0) {
+          print 0
+        } else {
+          value = int((pos / total) * 100)
+          if (value < 0) value = 0
+          if (value > 100) value = 100
+          print value
+        }
+      }')"
+    fi
+
+    if [[ "$volume_raw" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+      volume_percent="$(awk -v value="$volume_raw" 'BEGIN {
+        percent = int(value * 100)
+        if (percent < 0) percent = 0
+        if (percent > 100) percent = 100
+        print percent
+      }')"
+    fi
+
+    position_text="$(seconds_to_clock "$position_raw")"
+    length_text="$(seconds_to_clock "$length_seconds")"
+    status_label="$(printf '%s\n' "$status" | tr '[:lower:]' '[:upper:]')"
+  fi
+
+  jq -nc \
+    --argjson active "$active" \
+    --arg player "$player_name" \
+    --arg status "$status_label" \
+    --arg title "$title" \
+    --arg artist "$artist" \
+    --arg album "$album" \
+    --arg art_url "$art_url" \
+    --arg position "$position_text" \
+    --arg length "$length_text" \
+    --argjson progress_percent "$progress_percent" \
+    --argjson volume_percent "$volume_percent" \
+    '{active:$active,player:$player,status:$status,title:$title,artist:$artist,album:$album,art_url:$art_url,position:$position,length:$length,progress_percent:$progress_percent,volume_percent:$volume_percent}'
+}
+
+run_media_action() {
+  local action="${1:-}"
+  local player=""
+
+  if ! player="$(select_media_player || true)" || [[ -z "$player" ]]; then
+    exit 0
+  fi
+
+  case "$action" in
+    previous)
+      playerctl -p "$player" previous >/dev/null 2>&1 || true
+      ;;
+    toggle)
+      playerctl -p "$player" play-pause >/dev/null 2>&1 || true
+      ;;
+    next)
+      playerctl -p "$player" next >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+active_network_lines() {
+  if ! command -v nmcli >/dev/null 2>&1; then
+    return 0
+  fi
+
+  nmcli -m multiline -f NAME,TYPE,DEVICE connection show --active 2>/dev/null \
+    | awk '
+        function trim(value) {
+          sub(/^[[:space:]]+/, "", value)
+          sub(/[[:space:]]+$/, "", value)
+          return value
+        }
+        /^NAME:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          name = trim(line)
+          next
+        }
+        /^TYPE:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          type = trim(line)
+          next
+        }
+        /^DEVICE:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          device = trim(line)
+          if (name != "" && device != "" && device != "--" && (type == "ethernet" || type == "wifi")) {
+            print name "\t" type "\t" device
+          }
+          name = ""
+          type = ""
+          device = ""
+        }
+      '
+}
+
+saved_wifi_lines() {
+  if ! command -v nmcli >/dev/null 2>&1; then
+    return 0
+  fi
+
+  nmcli -m multiline -f NAME,TYPE,DEVICE,TIMESTAMP-REAL connection show 2>/dev/null \
+    | awk '
+        function trim(value) {
+          sub(/^[[:space:]]+/, "", value)
+          sub(/[[:space:]]+$/, "", value)
+          return value
+        }
+        /^NAME:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          name = trim(line)
+          next
+        }
+        /^TYPE:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          type = trim(line)
+          next
+        }
+        /^DEVICE:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          device = trim(line)
+          next
+        }
+        /^TIMESTAMP-REAL:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          timestamp = trim(line)
+          if (name != "" && type == "wifi") {
+            print name "\t" device "\t" timestamp
+          }
+          name = ""
+          type = ""
+          device = ""
+          timestamp = ""
+        }
+      '
+}
+
+visible_wifi_lines() {
+  if ! command -v nmcli >/dev/null 2>&1; then
+    return 0
+  fi
+
+  nmcli -m multiline -f IN-USE,SSID,SIGNAL,SECURITY,DEVICE device wifi list 2>/dev/null \
+    | awk '
+        function trim(value) {
+          sub(/^[[:space:]]+/, "", value)
+          sub(/[[:space:]]+$/, "", value)
+          return value
+        }
+        /^IN-USE:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          inuse = trim(line)
+          next
+        }
+        /^SSID:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          ssid = trim(line)
+          next
+        }
+        /^SIGNAL:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          signal = trim(line)
+          next
+        }
+        /^SECURITY:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          security = trim(line)
+          next
+        }
+        /^DEVICE:/ {
+          line = $0
+          sub(/^[^:]+:[[:space:]]*/, "", line)
+          device = trim(line)
+          if (ssid != "" && ssid != "--") {
+            print ssid "\t" signal "\t" security "\t" device "\t" inuse
+          }
+          inuse = ""
+          ssid = ""
+          signal = ""
+          security = ""
+          device = ""
+        }
+      '
+}
+
+networking_enabled_value() {
+  local state=""
+
+  if command -v nmcli >/dev/null 2>&1; then
+    state="$(nmcli networking 2>/dev/null | awk 'NR == 1 { print tolower($1) }')"
+  fi
+
+  if [[ "$state" == "enabled" ]]; then
+    printf 'true\n'
+  else
+    printf 'false\n'
+  fi
+}
+
+wifi_enabled_value() {
+  local state=""
+
+  if command -v nmcli >/dev/null 2>&1; then
+    state="$(nmcli radio wifi 2>/dev/null | awk 'NR == 1 { print tolower($1) }')"
+  fi
+
+  if [[ "$state" == "enabled" ]]; then
+    printf 'true\n'
+  else
+    printf 'false\n'
+  fi
+}
+
+current_desktop_value() {
+  local binary=""
+  local value=""
+
+  for binary in qdbus6 qdbus; do
+    if ! command -v "$binary" >/dev/null 2>&1; then
+      continue
+    fi
+    value="$("$binary" org.kde.KWin /KWin org.kde.KWin.currentDesktop 2>/dev/null | awk 'NR == 1 { print $1 }')"
+    if [[ "$value" =~ ^[0-9]+$ ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  done
+
+  printf '1\n'
+}
+
+desktop_count_value() {
+  local kwin_file="${HOME}/.config/kwinrc"
+  local value=""
+
+  if [[ -r "$kwin_file" ]]; then
+    value="$(
+      awk -F= '
+        /^\[Desktops\]/ { in_group=1; next }
+        /^\[/ { in_group=0 }
+        in_group && $1 == "Number" { print $2; exit }
+      ' "$kwin_file"
+    )"
+  fi
+
+  if [[ "$value" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$value"
+    return 0
+  fi
+
+  printf '4\n'
+}
+
 print_system_status() {
   local pretty_name="Arch Linux"
   local kernel uptime shell_name session_name
@@ -292,6 +980,219 @@ print_network() {
     '{interface:$interface,connection:$connection,status:$status,local_ip:$local_ip,gateway:$gateway,down:$down,up:$up,download_history:$download_history,upload_history:$upload_history}'
 }
 
+print_network_menu() {
+  local interface down up connected_json available_json
+  local status="DISCONNECTED"
+  local first=1
+  local name="" type="" device="" kind="" subtitle="" item_json=""
+  local active_names_file saved_wifi_file visible_wifi_file
+  local connection="" connection_device="" timestamp="" ssid="" signal="" security="" visible_device="" inuse=""
+  local combined_subtitle=""
+  local primary_connection="No active network link"
+  local wifi_enabled networking_enabled
+
+  interface="$(default_interface)"
+  read -r down up < <(network_speeds "$interface")
+
+  active_names_file="$(mktemp)"
+  saved_wifi_file="$(mktemp)"
+  visible_wifi_file="$(mktemp)"
+
+  active_network_lines >"$active_names_file"
+  saved_wifi_lines >"$saved_wifi_file"
+  visible_wifi_lines >"$visible_wifi_file"
+
+  connected_json="$(
+    {
+      printf '['
+      first=1
+      while IFS=$'\t' read -r name type device; do
+        [[ -n "$name" ]] || continue
+        if [[ "$primary_connection" == "No active network link" ]]; then
+          primary_connection="$name"
+        fi
+        if [[ "$type" == "ethernet" ]]; then
+          kind="wired"
+          if [[ "$device" == "$interface" ]]; then
+            subtitle="$(format_rate "$down") / $(format_rate "$up")"
+          else
+            subtitle="Connected on ${device}"
+          fi
+        else
+          kind="wifi"
+          subtitle="Connected on ${device}"
+        fi
+
+        item_json="$(jq -nc \
+          --arg label "$name" \
+          --arg kind "$kind" \
+          --arg device "$device" \
+          --arg subtitle "$subtitle" \
+          --arg connection "$name" \
+          --arg ssid "$name" \
+          '{label:$label,kind:$kind,device:$device,subtitle:$subtitle,action:"disconnect",connection:$connection,ssid:$ssid,known:true}')"
+
+        if (( first == 0 )); then
+          printf ','
+        fi
+        printf '%s' "$item_json"
+        first=0
+      done <"$active_names_file"
+      printf ']'
+    }
+  )"
+
+  if [[ "$connected_json" != "[]" ]]; then
+    status="CONNECTED"
+  fi
+
+  available_json="$(
+    {
+      printf '['
+      first=1
+
+      while IFS=$'\t' read -r connection connection_device timestamp; do
+        [[ -n "$connection" ]] || continue
+        if awk -F'\t' -v target="$connection" '$1 == target { found=1; exit } END { exit(found ? 0 : 1) }' "$active_names_file"; then
+          continue
+        fi
+
+        signal=""
+        security=""
+        visible_device=""
+        inuse=""
+        while IFS=$'\t' read -r ssid signal security visible_device inuse; do
+          [[ "$ssid" == "$connection" ]] || continue
+          break
+        done < <(
+          awk -F'\t' -v target="$connection" '
+            $1 == target {
+              score = ($2 == "" ? 0 : $2 + 0)
+              if (!(target in best) || score > best[target]) {
+                best[target] = score
+                sec[target] = $3
+                dev[target] = $4
+                used[target] = $5
+              }
+            }
+            END {
+              if (target in best) {
+                printf "%s\t%s\t%s\t%s\t%s\n", target, best[target], sec[target], dev[target], used[target]
+              }
+            }
+          ' "$visible_wifi_file"
+        )
+
+        combined_subtitle="$(relative_last_used "$timestamp")"
+        if [[ -n "$signal" ]]; then
+          combined_subtitle="${combined_subtitle} | Signal ${signal}%"
+        fi
+        if [[ -n "$security" && "$security" != "--" ]]; then
+          combined_subtitle="${combined_subtitle} | ${security}"
+        fi
+
+        item_json="$(jq -nc \
+          --arg label "$connection" \
+          --arg device "${visible_device:-${connection_device/--/wlan0}}" \
+          --arg subtitle "$combined_subtitle" \
+          --arg connection "$connection" \
+          --arg ssid "$connection" \
+          '{label:$label,kind:"wifi",device:$device,subtitle:$subtitle,action:"connect",connection:$connection,ssid:$ssid,known:true}')"
+
+        if (( first == 0 )); then
+          printf ','
+        fi
+        printf '%s' "$item_json"
+        first=0
+      done <"$saved_wifi_file"
+      printf ']'
+    }
+  )"
+
+  rm -f "$active_names_file" "$saved_wifi_file" "$visible_wifi_file"
+
+  wifi_enabled="$(wifi_enabled_value)"
+  networking_enabled="$(networking_enabled_value)"
+
+  jq -nc \
+    --arg status "$status" \
+    --arg primary_connection "$primary_connection" \
+    --argjson wifi_enabled "$wifi_enabled" \
+    --argjson networking_enabled "$networking_enabled" \
+    --argjson connected "$connected_json" \
+    --argjson available "$available_json" \
+    '{status:$status,primary_connection:$primary_connection,wifi_enabled:$wifi_enabled,networking_enabled:$networking_enabled,connected:$connected,available:$available}'
+}
+
+run_network_action() {
+  local action="${1:-}"
+  local connection="${2:-}"
+  local device="${3:-}"
+  local ssid="${4:-}"
+  local known="${5:-true}"
+
+  command -v nmcli >/dev/null 2>&1 || exit 1
+
+  case "$action" in
+    disconnect)
+      if [[ -n "$connection" && "$connection" != "--" ]]; then
+        nmcli --wait 10 connection down id "$connection" >/dev/null 2>&1 && exit 0
+      fi
+      if [[ -n "$device" && "$device" != "--" ]]; then
+        nmcli --wait 10 device disconnect "$device" >/dev/null 2>&1 && exit 0
+      fi
+      exit 1
+      ;;
+    connect)
+      if [[ "$known" == "true" || "$known" == "1" ]]; then
+        if [[ -n "$connection" && "$connection" != "--" ]]; then
+          nmcli --wait 15 connection up id "$connection" >/dev/null 2>&1 && exit 0
+        fi
+      fi
+      if [[ -n "$ssid" && "$ssid" != "--" ]]; then
+        if [[ -n "$device" && "$device" != "--" ]]; then
+          nmcli --wait 15 device wifi connect "$ssid" ifname "$device" >/dev/null 2>&1 && exit 0
+        fi
+        nmcli --wait 15 device wifi connect "$ssid" >/dev/null 2>&1 && exit 0
+      fi
+      exit 1
+      ;;
+    rescan)
+      nmcli device wifi rescan >/dev/null 2>&1
+      ;;
+    wifi-on)
+      nmcli radio wifi on >/dev/null 2>&1
+      ;;
+    wifi-off)
+      nmcli radio wifi off >/dev/null 2>&1
+      ;;
+    network-on)
+      nmcli networking on >/dev/null 2>&1
+      ;;
+    network-off)
+      nmcli networking off >/dev/null 2>&1
+      ;;
+    open-settings)
+      if command -v systemsettings >/dev/null 2>&1; then
+        systemsettings kcm_networkmanagement >/dev/null 2>&1 &
+        exit 0
+      fi
+      if command -v kcmshell6 >/dev/null 2>&1; then
+        kcmshell6 kcm_networkmanagement >/dev/null 2>&1 &
+        exit 0
+      fi
+      if command -v nm-connection-editor >/dev/null 2>&1; then
+        nm-connection-editor >/dev/null 2>&1 &
+        exit 0
+      fi
+      exit 1
+      ;;
+    *)
+      exit 1
+      ;;
+  esac
+}
+
 print_system_log() {
   local fallback
 
@@ -343,10 +1244,15 @@ print_system_profile() {
 
 print_memory() {
   local total_kib available_kib used_kib percent segments_filled
+  local cached_kib swap_total_kib swap_free_kib swap_used_kib
 
   total_kib="$(awk '/MemTotal:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
   available_kib="$(awk '/MemAvailable:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
+  cached_kib="$(awk '/^Cached:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
+  swap_total_kib="$(awk '/SwapTotal:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
+  swap_free_kib="$(awk '/SwapFree:/ { print $2; exit }' /proc/meminfo 2>/dev/null || printf '0')"
   used_kib=$(( total_kib - available_kib ))
+  swap_used_kib=$(( swap_total_kib - swap_free_kib ))
 
   if (( total_kib > 0 )); then
     percent=$(( used_kib * 100 / total_kib ))
@@ -363,10 +1269,115 @@ print_memory() {
     --arg total "$(format_kib "$total_kib")" \
     --arg used "$(format_kib "$used_kib")" \
     --arg free "$(format_kib "$available_kib")" \
+    --arg cached "$(format_kib "$cached_kib")" \
+    --arg swap_total "$(format_kib "$swap_total_kib")" \
+    --arg swap_used "$(format_kib "$swap_used_kib")" \
     --arg percent "${percent}%" \
     --argjson percent_value "$percent" \
     --argjson segments_filled "$segments_filled" \
-    '{total:$total,used:$used,free:$free,percent:$percent,percent_value:$percent_value,segments_filled:$segments_filled}'
+    '{total:$total,used:$used,free:$free,cached:$cached,swap_total:$swap_total,swap_used:$swap_used,percent:$percent,percent_value:$percent_value,segments_filled:$segments_filled}'
+}
+
+print_cpu_menu() {
+  local usage load1 load5 load15 cores model frequency temperature segments_filled core_usages_json
+
+  usage="$(cpu_percent_value)"
+  read -r load1 load5 load15 < <(cpu_load_values)
+  cores="$(cpu_core_count)"
+  model="$(cpu_model_name)"
+  frequency="$(cpu_frequency_ghz)"
+  temperature="$(cpu_temperature_c)"
+  core_usages_json="$(cpu_core_percent_json)"
+
+  segments_filled=$(( (usage * 28 + 99) / 100 ))
+  if (( segments_filled > 28 )); then
+    segments_filled=28
+  fi
+
+  jq -nc \
+    --arg usage "${usage}%" \
+    --arg load1 "${load1:-0.00}" \
+    --arg load5 "${load5:-0.00}" \
+    --arg load15 "${load15:-0.00}" \
+    --arg cores "${cores:-0}" \
+    --arg frequency "$frequency" \
+    --arg temperature "$temperature" \
+    --arg model "${model:-Unknown CPU}" \
+    --argjson usage_value "$usage" \
+    --argjson segments_filled "$segments_filled" \
+    --argjson core_usages "$core_usages_json" \
+    '{usage:$usage,usage_value:$usage_value,load1:$load1,load5:$load5,load15:$load15,cores:$cores,frequency:$frequency,temperature:$temperature,model:$model,segments_filled:$segments_filled,core_usages:$core_usages}'
+}
+
+print_shell_bar() {
+  local cpu_percent mem_percent clock_text
+  local interface operstate local_ip down up history_file history_down history_up down_line up_line down_json
+  local net_status running_apps_json net_glyph media_player media_status media_active
+
+  cpu_percent="$(cpu_percent_value)"
+  mem_percent="$(memory_percent_value)"
+  clock_text="$(date '+%I:%M %p')"
+  interface="$(default_interface)"
+  operstate="down"
+
+  if [[ -r "/sys/class/net/${interface}/operstate" ]]; then
+    operstate="$(<"/sys/class/net/${interface}/operstate")"
+  fi
+
+  local_ip="$(ip -4 addr show dev "$interface" 2>/dev/null | awk '/inet / { print $2; exit }')"
+  read -r down up < <(network_speeds "$interface")
+
+  history_file="${CACHE_DIR}/qs-net-${interface}.history"
+  if [[ -r "$history_file" ]]; then
+    history_down="$(sed -n '1p' "$history_file")"
+    history_up="$(sed -n '2p' "$history_file")"
+  fi
+
+  down_line="$(append_history_line "${history_down:-}" "$down" 16)"
+  up_line="$(append_history_line "${history_up:-}" "$up" 16)"
+  printf '%s\n%s\n' "$down_line" "$up_line" >"$history_file"
+
+  down_json="$(normalize_history_line "$down_line")"
+  net_glyph="$(history_glyph "$down_json")"
+
+  if [[ -n "${local_ip:-}" && "$operstate" == "up" ]]; then
+    net_status="ONLINE"
+  else
+    net_status="OFFLINE"
+  fi
+
+  running_apps_json="$(app_running_json)"
+  media_active=false
+  media_status="OFFLINE"
+
+  if media_player="$(select_media_player || true)" && [[ -n "$media_player" ]]; then
+    media_active=true
+    media_status="$(playerctl -p "$media_player" status 2>/dev/null || printf 'Stopped')"
+    media_status="$(printf '%s\n' "$media_status" | tr '[:lower:]' '[:upper:]')"
+  fi
+
+  jq -nc \
+    --argjson cpu_percent "$cpu_percent" \
+    --argjson mem_percent "$mem_percent" \
+    --arg clock "$clock_text" \
+    --arg net_glyph "$net_glyph" \
+    --arg net_status "$net_status" \
+    --arg media_status "$media_status" \
+    --argjson media_active "$media_active" \
+    --argjson running_apps "$running_apps_json" \
+    '{cpu_percent:$cpu_percent,mem_percent:$mem_percent,clock:$clock,net_glyph:$net_glyph,net_status:$net_status,media_status:$media_status,media_active:$media_active,running_apps:$running_apps}'
+}
+
+print_desktops() {
+  local current count
+
+  current="$(current_desktop_value)"
+  count="$(desktop_count_value)"
+
+  jq -nc \
+    --argjson current "$current" \
+    --argjson count "$count" \
+    '{current:$current,count:$count}'
 }
 
 case "$SECTION" in
@@ -385,8 +1396,28 @@ case "$SECTION" in
   memory)
     print_memory
     ;;
+  cpu-menu)
+    print_cpu_menu
+    ;;
+  media-menu)
+    print_media_menu
+    ;;
+  shell-bar)
+    print_shell_bar
+    ;;
+  media-action)
+    run_media_action "${2:-}"
+    ;;
+  network-menu)
+    print_network_menu
+    ;;
+  network-action)
+    run_network_action "${2:-}" "${3:-}" "${4:-}" "${5:-}" "${6:-true}"
+    ;;
+  desktops)
+    print_desktops
+    ;;
   *)
     jq -nc '{}'
     ;;
 esac
-

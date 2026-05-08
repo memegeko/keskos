@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-05-08
+
+### Installer console, browser loadout, and release routing
+
+KeskOS continued the shift from a themed live ISO into a more complete product flow, with install-time browser and software selection, better release-facing docs, and a clearer website/download split.
+
+### Added
+
+- `ROADMAP.md` for tracked project direction, active work, and future milestones
+- Calamares software loadout steps for browser, bundles, feature flags, and add-ons
+- Calamares deploy review step
+- installer-side browser theme and startpage application path
+- build-time Calamares UI patching for KeskOS installer polish
+
+### Changed
+
+- moved post-install personalization away from a forced first-login setup app and into Calamares
+- updated the README to point users to:
+  - `https://keskos.org` as the main website
+  - `https://download.keskos.org` as the primary download location
+- refreshed the README installer section and screenshot references for the current ISO flow
+- changed browser handling so the selected browser is staged through the ISO workflow instead of falling back to Firefox by default
+- updated release-facing docs to better reflect the current installer and desktop direction
+
+### Fixed
+
+- fixed multiple Calamares module load and branding failures during the custom installer work
+- fixed the dark installer progress page so it no longer drifts onto an off-center white canvas
+- fixed package manager preparation failures caused by the optional package step forcing `pacman -Sy`
+- fixed browser packaging flow so selected browsers no longer silently collapse back to Firefox
+- fixed the multi-select package/add-on checkbox interaction path in the patched Calamares chooser flow
+
+### Notes
+
+- GitHub remains the source and release mirror
+- the public download path should now be treated as `download.keskos.org`
+- the public project site should now be treated as `keskos.org`
+
 ## 2026-05-01
 
 ### Release focus and ISO polish

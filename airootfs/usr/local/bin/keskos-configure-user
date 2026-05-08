@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOURCE_ROOT="/usr/local/share/keskos/source"
+SOURCE_ROOT="${SOURCE_ROOT:-}"
 OFFLINE=0
 FORCE=0
 TARGET_USER="${TARGET_USER:-}"
+INSTALL_CHOICES_FILE=""
+DEFAULT_BROWSER_DESKTOP="librewolf.desktop"
+FEATURE_QUICKSHELL_TOPBAR=1
+FEATURE_KDE_BOTTOM_TASKBAR=1
+FEATURE_PLASMA_THEME=1
+FEATURE_WINDOW_BORDERS=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -71,6 +77,57 @@ resolve_target_home() {
   fi
 }
 
+resolve_source_root() {
+  local candidate=""
+
+  for candidate in \
+    "${SOURCE_ROOT:-}" \
+    "${TARGET_HOME}/.local/share/keskos/source" \
+    "$HOME/.local/share/keskos/source" \
+    "/usr/local/share/keskos/source" \
+    "/usr/share/keskos/source"
+  do
+    [[ -n "$candidate" ]] || continue
+    if [[ -d "$candidate/configs" ]]; then
+      SOURCE_ROOT="$candidate"
+      return 0
+    fi
+  done
+
+  printf '[keskos-user] error: could not locate a KeskOS source tree\n' >&2
+  exit 1
+}
+
+resolve_install_choices() {
+  local candidate=""
+  local jq_bin=""
+
+  if command -v jq >/dev/null 2>&1; then
+    jq_bin="jq"
+  else
+    return 0
+  fi
+
+  for candidate in \
+    "$TARGET_HOME/.config/keskos/install-choices.json" \
+    "/etc/keskos/install-choices.json" \
+    "/var/lib/keskos/install-choices.json"
+  do
+    if [[ -f "$candidate" ]]; then
+      INSTALL_CHOICES_FILE="$candidate"
+      break
+    fi
+  done
+
+  [[ -n "$INSTALL_CHOICES_FILE" ]] || return 0
+
+  DEFAULT_BROWSER_DESKTOP="$("$jq_bin" -r '.browser.desktop // "librewolf.desktop"' "$INSTALL_CHOICES_FILE" 2>/dev/null || printf 'librewolf.desktop\n')"
+  FEATURE_QUICKSHELL_TOPBAR="$("$jq_bin" -r 'if .features.quickshell_topbar == false then 0 else 1 end' "$INSTALL_CHOICES_FILE" 2>/dev/null || printf '1\n')"
+  FEATURE_KDE_BOTTOM_TASKBAR="$("$jq_bin" -r 'if .features.kde_bottom_taskbar == false then 0 else 1 end' "$INSTALL_CHOICES_FILE" 2>/dev/null || printf '1\n')"
+  FEATURE_PLASMA_THEME="$("$jq_bin" -r 'if .features.plasma_theme == false then 0 else 1 end' "$INSTALL_CHOICES_FILE" 2>/dev/null || printf '1\n')"
+  FEATURE_WINDOW_BORDERS="$("$jq_bin" -r 'if .features.window_borders == false then 0 else 1 end' "$INSTALL_CHOICES_FILE" 2>/dev/null || printf '1\n')"
+}
+
 ensure_dirs() {
   mkdir -p \
     "$TARGET_HOME/.config/fastfetch" \
@@ -78,6 +135,7 @@ ensure_dirs() {
     "$TARGET_HOME/.config" \
     "$TARGET_HOME/.config/quickshell" \
     "$TARGET_HOME/.config/autostart" \
+    "$TARGET_HOME/.config/systemd/user" \
     "$TARGET_HOME/.local/state/keskos" \
     "$TARGET_HOME/Desktop"
 }
@@ -93,6 +151,23 @@ copy_default() {
 
   if [[ ${EUID} -eq 0 ]]; then
     chown "$TARGET_USER:$TARGET_USER" "$target_path"
+  fi
+}
+
+sync_dir_default() {
+  local source_dir="$1"
+  local target_dir="$2"
+
+  if [[ "$FORCE" -ne 1 && -d "$target_dir" ]]; then
+    return 0
+  fi
+
+  rm -rf "$target_dir"
+  mkdir -p "$(dirname "$target_dir")"
+  cp -a "$source_dir" "$target_dir"
+
+  if [[ ${EUID} -eq 0 ]]; then
+    chown -R "$TARGET_USER:$TARGET_USER" "$target_dir"
   fi
 }
 
@@ -139,21 +214,85 @@ install_fastfetch_assets() {
   copy_default "$SOURCE_ROOT/configs/fastfetch/logo.txt" "$TARGET_HOME/.config/fastfetch/logo.txt" 644
 }
 
+install_quickshell_config() {
+  local source_dir="$SOURCE_ROOT/configs/quickshell/keskos"
+  local target_dir="$TARGET_HOME/.config/quickshell/keskos"
+
+  if [[ "$FEATURE_QUICKSHELL_TOPBAR" -ne 1 ]]; then
+    rm -rf "$target_dir"
+    return 0
+  fi
+
+  if [[ -d "$source_dir" ]]; then
+    rm -rf "$target_dir"
+    mkdir -p "$(dirname "$target_dir")"
+    cp -a "$source_dir" "$target_dir"
+
+    if [[ ${EUID} -eq 0 ]]; then
+      chown -R "$TARGET_USER:$TARGET_USER" "$target_dir"
+    fi
+  fi
+}
+
 install_autostart_entry() {
-  local source_entry="/etc/skel/.config/autostart/keskos-session-start.desktop"
-  local target_entry="$TARGET_HOME/.config/autostart/keskos-session-start.desktop"
-  if [[ -f "$source_entry" ]]; then
-    copy_default "$source_entry" "$target_entry" 644
+  rm -f "$TARGET_HOME/.config/autostart/keskos-session-start.desktop"
+  rm -f "$TARGET_HOME/.config/autostart/keskos-first-run.desktop"
+
+  local entry_name=""
+  local source_entry=""
+  local repo_source_entry=""
+  local target_entry=""
+
+  for entry_name in \
+    "keskos-quickshell.desktop" \
+    "keskos-display-watch.desktop"
+  do
+    source_entry="/etc/skel/.config/autostart/${entry_name}"
+    repo_source_entry="$SOURCE_ROOT/airootfs/etc/skel/.config/autostart/${entry_name}"
+    target_entry="$TARGET_HOME/.config/autostart/${entry_name}"
+
+    if [[ ! -f "$source_entry" && -f "$repo_source_entry" ]]; then
+      source_entry="$repo_source_entry"
+    fi
+
+    if [[ "$FEATURE_QUICKSHELL_TOPBAR" -ne 1 ]]; then
+      rm -f "$target_entry"
+      continue
+    fi
+
+    if [[ -f "$source_entry" ]]; then
+      copy_default "$source_entry" "$target_entry" 644
+    fi
+  done
+}
+
+remove_legacy_eww() {
+  local deprecated_dir="$TARGET_HOME/.config/eww.deprecated-keskos"
+  local eww_dir="$TARGET_HOME/.config/eww"
+
+  if [[ -d "$eww_dir" && ! -e "$deprecated_dir" ]]; then
+    mv "$eww_dir" "$deprecated_dir"
+  fi
+
+  rm -f \
+    "$TARGET_HOME/.config/autostart/eww.desktop" \
+    "$TARGET_HOME/.config/autostart/keskos-eww.desktop"
+
+  if [[ "$OFFLINE" -eq 0 ]]; then
+    pkill -x eww >/dev/null 2>&1 || true
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl --user disable --now eww.service keskos-eww.service eww-daemon.service >/dev/null 2>&1 || true
+    fi
   fi
 }
 
 configure_default_apps() {
-  write_if_needed "$TARGET_HOME/.config/mimeapps.list" 644 <<'EOF'
+  write_if_needed "$TARGET_HOME/.config/mimeapps.list" 644 <<EOF
 [Default Applications]
-x-scheme-handler/http=firefox.desktop
-x-scheme-handler/https=firefox.desktop
-text/html=firefox.desktop
-application/xhtml+xml=firefox.desktop
+x-scheme-handler/http=${DEFAULT_BROWSER_DESKTOP}
+x-scheme-handler/https=${DEFAULT_BROWSER_DESKTOP}
+text/html=${DEFAULT_BROWSER_DESKTOP}
+application/xhtml+xml=${DEFAULT_BROWSER_DESKTOP}
 inode/directory=dolphin.desktop
 EOF
 }
@@ -193,7 +332,7 @@ configure_shortcuts() {
   [[ -n "$kwriteconfig_bin" ]] || return 0
 
   "$kwriteconfig_bin" --file "$kwin_file" --group ModifierOnlyShortcuts --key Meta "$meta_action"
-  "$kwriteconfig_bin" --file "$shortcuts_file" --group plasmashell --key "activate application launcher" "Alt+F1,Alt+F1,Activate Application Launcher" >/dev/null 2>&1 || true
+  "$kwriteconfig_bin" --file "$shortcuts_file" --group plasmashell --key "activate application launcher" "none,none,Activate Application Launcher" >/dev/null 2>&1 || true
   "$kwriteconfig_bin" --file "$shortcuts_file" --group kwin --key "Edit Tiles" "none,none,Toggle Tiles Editor" >/dev/null 2>&1 || true
   "$kwriteconfig_bin" --file "$shortcuts_file" --group kwin --key Overview "none,none,Toggle Overview" >/dev/null 2>&1 || true
   "$kwriteconfig_bin" --file "$shortcuts_file" --group kwin --key "Walk Through Windows (Reverse)" "Alt+Shift+Tab,Alt+Shift+Tab,Walk Through Windows (Reverse)" >/dev/null 2>&1 || true
@@ -219,20 +358,43 @@ configure_terminal() {
 configure_kde_visuals() {
   local kdeglobals="$TARGET_HOME/.config/kdeglobals"
   local kwin_file="$TARGET_HOME/.config/kwinrc"
+  local plasmarc="$TARGET_HOME/.config/plasmarc"
 
   [[ -n "$kwriteconfig_bin" ]] || return 0
 
-  "$kwriteconfig_bin" --file "$kdeglobals" --group General --key ColorScheme "KESKOS"
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key font "JetBrainsMono Nerd Font,10,-1,5,50,0,0,0,0,0"
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key fixed "JetBrainsMono Nerd Font,10,-1,5,50,0,0,0,0,0"
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key smallestReadableFont "JetBrainsMono Nerd Font,8,-1,5,50,0,0,0,0,0"
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key menuFont "JetBrainsMono Nerd Font,10,-1,5,50,0,0,0,0,0"
   "$kwriteconfig_bin" --file "$kdeglobals" --group General --key toolBarFont "JetBrainsMono Nerd Font,10,-1,5,50,0,0,0,0,0"
-  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key library "org.kde.kwin.aurorae"
-  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key theme "kwin4_decoration_qml_keskos_split"
-  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key BorderSize "Normal"
-  "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key BorderSizeAuto false
-  "$kwriteconfig_bin" --file "$kwin_file" --group Windows --key BorderlessMaximizedWindows false
+  "$kwriteconfig_bin" --file "$kdeglobals" --group KDE --key SingleClick false
+
+  if [[ "$FEATURE_PLASMA_THEME" -eq 1 ]]; then
+    "$kwriteconfig_bin" --file "$kdeglobals" --group General --key ColorScheme "KESKOS"
+    "$kwriteconfig_bin" --file "$kdeglobals" --group KDE --key LookAndFeelPackage "com.keskos.desktop"
+    "$kwriteconfig_bin" --file "$plasmarc" --group Theme --key name "default"
+  fi
+
+  if [[ "$FEATURE_WINDOW_BORDERS" -eq 1 ]]; then
+    "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key library "org.kde.kwin.aurorae"
+    "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key theme "kwin4_decoration_qml_keskos_split"
+    "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key BorderSize "Normal"
+    "$kwriteconfig_bin" --file "$kwin_file" --group org.kde.kdecoration2 --key BorderSizeAuto false
+    "$kwriteconfig_bin" --file "$kwin_file" --group Windows --key BorderlessMaximizedWindows false
+  fi
+}
+
+configure_virtual_desktops() {
+  local kwin_file="$TARGET_HOME/.config/kwinrc"
+
+  [[ -n "$kwriteconfig_bin" ]] || return 0
+
+  "$kwriteconfig_bin" --file "$kwin_file" --group Desktops --key Number 4
+  "$kwriteconfig_bin" --file "$kwin_file" --group Desktops --key Rows 1
+  "$kwriteconfig_bin" --file "$kwin_file" --group Desktops --key Name_1 1
+  "$kwriteconfig_bin" --file "$kwin_file" --group Desktops --key Name_2 2
+  "$kwriteconfig_bin" --file "$kwin_file" --group Desktops --key Name_3 3
+  "$kwriteconfig_bin" --file "$kwin_file" --group Desktops --key Name_4 4
 }
 
 configure_lockscreen_and_splash() {
@@ -241,6 +403,7 @@ configure_lockscreen_and_splash() {
   local background_path="/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/assets/background.png"
 
   [[ -n "$kwriteconfig_bin" ]] || return 0
+  [[ "$FEATURE_PLASMA_THEME" -eq 1 ]] || return 0
 
   "$kwriteconfig_bin" --file "$kscreenlockerrc" --group Greeter --key WallpaperPlugin "org.kde.image"
   "$kwriteconfig_bin" --file "$kscreenlockerrc" --group Greeter --group Wallpaper --group org.kde.image --group General --key Image "file://$background_path"
@@ -249,23 +412,74 @@ configure_lockscreen_and_splash() {
   "$kwriteconfig_bin" --file "$ksplashrc" --group KSplash --key Theme "com.keskos.desktop"
 }
 
-maybe_set_panel_autohide() {
-  local script
+resolve_kesk_panel_id() {
+  local marker="${1:-keskos-bottom-panel-v1}"
+  local appletsrc="$TARGET_HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+
+  [[ -f "$appletsrc" ]] || return 0
+
+  awk -v marker="$marker" '
+    match($0, /^\[Containments\]\[([0-9]+)\]\[General\]$/, groups) {
+      current = groups[1]
+      next
+    }
+    /^\[/ {
+      current = ""
+      next
+    }
+    current != "" && $0 == "keskosPanel=" marker {
+      print current
+      exit
+    }
+  ' "$appletsrc"
+}
+
+configure_plasma_panel_view() {
+  local panel_id="$1"
+  local thickness="${2:-48}"
+  local plasmashellrc="$TARGET_HOME/.config/plasmashellrc"
+
+  [[ -n "$kwriteconfig_bin" ]] || return 0
+  [[ -n "$panel_id" ]] || return 0
+
+  "$kwriteconfig_bin" --file "$plasmashellrc" --group PlasmaViews --group "Panel ${panel_id}" --key floating 0
+  "$kwriteconfig_bin" --file "$plasmashellrc" --group PlasmaViews --group "Panel ${panel_id}" --key panelOpacity 1
+  "$kwriteconfig_bin" --file "$plasmashellrc" --group PlasmaViews --group "Panel ${panel_id}" --key panelVisibility 0
+  "$kwriteconfig_bin" --file "$plasmashellrc" --group PlasmaViews --group "Panel ${panel_id}" --group Defaults --key thickness "$thickness"
+}
+
+configure_plasma_panel() {
+  local script_path="$SOURCE_ROOT/configs/plasma/keskos-bottom-panel.js"
+  local script=""
+  local panel_id=""
+  local attempt=0
 
   [[ "$OFFLINE" -eq 0 ]] || return 0
+  [[ "$FEATURE_KDE_BOTTOM_TASKBAR" -eq 1 ]] || return 0
   [[ -n "$qdbus_bin" ]] || return 0
+  [[ -f "$script_path" ]] || return 0
 
-  script='for (var i = 0; i < panelIds.length; i++) {
-  try {
-    var panel = panelById(panelIds[i]);
-    if (panel) {
-      panel.hiding = "autohide";
-    }
-  } catch (error) {
-  }
-}'
+  if [[ -n "$kbuildsycoca_bin" ]]; then
+    "$kbuildsycoca_bin" >/dev/null 2>&1 || true
+  fi
 
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    if "$qdbus_bin" org.kde.plasmashell /PlasmaShell >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.2
+  done
+
+  script="$(<"$script_path")"
   "$qdbus_bin" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 || true
+
+  for attempt in 1 2 3 4 5; do
+    panel_id="$(resolve_kesk_panel_id "keskos-bottom-panel-v1" || true)"
+    [[ -n "$panel_id" ]] && break
+    sleep 0.2
+  done
+
+  configure_plasma_panel_view "$panel_id" 48
 }
 
 refresh_runtime() {
@@ -285,13 +499,17 @@ fix_ownership() {
     "$TARGET_HOME/.config/fastfetch"
     "$TARGET_HOME/.config/keskos"
     "$TARGET_HOME/.config/quickshell"
-    "$TARGET_HOME/.config/autostart/keskos-session-start.desktop"
+    "$TARGET_HOME/.config/autostart/keskos-quickshell.desktop"
+    "$TARGET_HOME/.config/autostart/keskos-display-watch.desktop"
     "$TARGET_HOME/.config/konsolerc"
     "$TARGET_HOME/.config/kdeglobals"
     "$TARGET_HOME/.config/kglobalshortcutsrc"
     "$TARGET_HOME/.config/kwinrc"
     "$TARGET_HOME/.config/kscreenlockerrc"
     "$TARGET_HOME/.config/ksplashrc"
+    "$TARGET_HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+    "$TARGET_HOME/.config/plasmarc"
+    "$TARGET_HOME/.config/plasmashellrc"
     "$TARGET_HOME/.local/state/keskos"
   )
 
@@ -306,17 +524,22 @@ fix_ownership() {
 main() {
   resolve_target_user
   resolve_target_home
+  resolve_source_root
+  resolve_install_choices
   ensure_dirs
+  remove_legacy_eww
   install_fastfetch_assets
+  install_quickshell_config
   write_bash_overlay
   install_autostart_entry
   configure_default_apps
   install_live_desktop_shortcuts
   configure_terminal
   configure_kde_visuals
+  configure_virtual_desktops
   configure_shortcuts
   configure_lockscreen_and_splash
-  maybe_set_panel_autohide
+  configure_plasma_panel
   refresh_runtime
   fix_ownership
   log "Configured KeskOS defaults for ${TARGET_USER}"

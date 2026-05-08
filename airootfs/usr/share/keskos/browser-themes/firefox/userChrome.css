@@ -1,0 +1,41 @@
+@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+
+:root {
+  --kesk-accent: #ce6a35 !important;
+  --kesk-bg: #050505 !important;
+  --kesk-panel: #080706 !important;
+  --kesk-block: #11100e !important;
+  --kesk-text: #b8afa6 !important;
+}
+
+#navigator-toolbox,
+#nav-bar,
+#TabsToolbar,
+#PersonalToolbar,
+#titlebar {
+  background: var(--kesk-panel) !important;
+  color: var(--kesk-text) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+#nav-bar {
+  border-bottom: 1px solid var(--kesk-accent) !important;
+}
+
+.tab-background[selected="true"] {
+  background: color-mix(in srgb, var(--kesk-accent) 20%, transparent) !important;
+  border: 1px solid var(--kesk-accent) !important;
+  border-radius: 0 !important;
+}
+
+.tabbrowser-tab {
+  color: var(--kesk-text) !important;
+}
+
+#urlbar-background,
+#searchbar {
+  background: var(--kesk-bg) !important;
+  border: 1px solid var(--kesk-accent) !important;
+  border-radius: 0 !important;
+}

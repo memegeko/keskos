@@ -9,12 +9,12 @@ sidebar: widget
 navigation: widget
 
 strings:
-  productName: "KeskOS"
-  shortProductName: "KeskOS"
-  version: "Installer Console"
-  shortVersion: "Installer"
-  versionedName: "KeskOS Installer"
-  shortVersionedName: "KeskOS Installer"
+  productName: "KESKOS INSTALLATION CONSOLE"
+  shortProductName: "KESKOS"
+  version: "S.P.L.I.T. EDITION"
+  shortVersion: "S.P.L.I.T."
+  versionedName: "KESKOS"
+  shortVersionedName: "KESKOS"
   bootloaderEntryName: "KeskOS"
   productUrl: "https://github.com/memegeko/keskos"
   supportUrl: "https://github.com/memegeko/keskos/issues"
@@ -29,10 +29,10 @@ images:
   productWelcome: "logo.png"
 
 style:
-  SidebarBackground: "#070504"
-  SidebarText: "#e7c9b3"
-  SidebarTextCurrent: "#050403"
-  SidebarBackgroundCurrent: "#ce6a35"
+  SidebarBackground: "#080706"
+  SidebarText: "#8f8a84"
+  SidebarTextCurrent: "#ce6a35"
+  SidebarBackgroundCurrent: "#33ce6a35"
 
 slideshow: "show.qml"
 slideshowAPI: 2

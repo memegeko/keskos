@@ -1,0 +1,15 @@
+@-moz-document url-prefix("about:"), url-prefix("moz-extension://") {
+  :root {
+    color-scheme: dark !important;
+    --newtab-background-color: #050505 !important;
+    --newtab-primary-action-background: #ce6a35 !important;
+    --newtab-text-primary-color: #b8afa6 !important;
+    --newtab-text-secondary-color: #8f8a84 !important;
+    --newtab-border-secondary-color: #ce6a35 !important;
+  }
+
+  body {
+    background: #050505 !important;
+    color: #b8afa6 !important;
+  }
+}

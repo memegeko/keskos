@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action="${1:-current}"
+value="${2:-}"
+
+resolve_qdbus() {
+  if command -v qdbus6 >/dev/null 2>&1; then
+    command -v qdbus6
+    return 0
+  fi
+
+  if command -v qdbus >/dev/null 2>&1; then
+    command -v qdbus
+    return 0
+  fi
+
+  return 1
+}
+
+current_desktop() {
+  local qdbus_bin=""
+  local current=""
+
+  if ! qdbus_bin="$(resolve_qdbus)"; then
+    printf '1\n'
+    return 0
+  fi
+
+  current="$("$qdbus_bin" org.kde.KWin /KWin org.kde.KWin.currentDesktop 2>/dev/null | awk 'NR == 1 { print $1 }')"
+  if [[ "$current" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$current"
+  else
+    printf '1\n'
+  fi
+}
+
+desktop_count() {
+  local kwin_file="${HOME}/.config/kwinrc"
+  local count=""
+
+  if [[ -r "$kwin_file" ]]; then
+    count="$(
+      awk -F= '
+        /^\[Desktops\]/ { in_group=1; next }
+        /^\[/ { in_group=0 }
+        in_group && $1 == "Number" { print $2; exit }
+      ' "$kwin_file"
+    )"
+  fi
+
+  if [[ "$count" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$count"
+  else
+    printf '4\n'
+  fi
+}
+
+set_desktop() {
+  local qdbus_bin=""
+  local desktop="$1"
+
+  [[ "$desktop" =~ ^[0-9]+$ ]] || exit 1
+  qdbus_bin="$(resolve_qdbus)"
+  "$qdbus_bin" org.kde.KWin /KWin org.kde.KWin.setCurrentDesktop "$desktop" >/dev/null 2>&1 || exit 1
+}
+
+case "$action" in
+  current)
+    current_desktop
+    ;;
+  count)
+    desktop_count
+    ;;
+  set)
+    set_desktop "$value"
+    ;;
+  *)
+    printf 'usage: %s {current|count|set <desktop>}\n' "$0" >&2
+    exit 1
+    ;;
+esac

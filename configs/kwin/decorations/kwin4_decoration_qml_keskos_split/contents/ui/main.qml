@@ -15,8 +15,8 @@ Decoration {
     property color inactiveBg: "#040302"
     property color activeTitleBg: "#0a0806"
     property color inactiveTitleBg: "#070504"
-    property color activeText: "#e7c9b3"
-    property color inactiveText: "#b6937c"
+    property color activeText: "#ce6a35"
+    property color inactiveText: "#8f8a84"
 
     readonly property color accent: decoration.client.active ? activeAccent : inactiveAccent
     readonly property color chromeBg: decoration.client.active ? activeTitleBg : inactiveTitleBg

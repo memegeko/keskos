@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KeskOS Display Watch
+Comment=Reapply the top bar and desktop state when monitor layout changes
+Exec=/usr/local/bin/keskos-display-watch
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
+NoDisplay=true
+StartupNotify=false

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=About KeskOS
+Comment=Display the KeskOS system overview window
+Exec=/usr/local/bin/keskos-about
+Icon=help-about
+Terminal=false
+Categories=System;
+StartupNotify=true

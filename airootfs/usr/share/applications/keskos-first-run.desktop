@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KeskOS Setup Console
+Comment=Run the optional KeskOS setup console fallback tool
+Exec=keskos-first-run
+Icon=preferences-system
+Terminal=false
+NoDisplay=true
+Categories=System;Settings;

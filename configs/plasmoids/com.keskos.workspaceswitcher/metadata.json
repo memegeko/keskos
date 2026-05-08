@@ -1,0 +1,18 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Authors": [
+      {
+        "Name": "memegeko"
+      }
+    ],
+    "Category": "Windows and Tasks",
+    "Description": "Numbered KeskOS virtual desktop switcher for the Plasma panel",
+    "Icon": "preferences-desktop-virtual",
+    "Id": "com.keskos.workspaceswitcher",
+    "License": "GPL-3.0-or-later",
+    "Name": "KeskOS Workspace Switcher",
+    "Version": "1.0"
+  },
+  "X-Plasma-API-Minimum-Version": "6.0"
+}

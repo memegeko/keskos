@@ -5,6 +5,19 @@ log() {
   printf '[keskos-postinstall] %s\n' "$1"
 }
 
+apply_install_choices() {
+  local target_user="$1"
+  local helper="/usr/lib/keskos-installer/apply-install-choices.sh"
+
+  [[ -x "$helper" ]] || return 0
+
+  if [[ -n "$target_user" ]]; then
+    TARGET_USER="$target_user" "$helper" || true
+  else
+    "$helper" || true
+  fi
+}
+
 write_sddm_login_defaults() {
   local target_user="$1"
   local theme_conf="/usr/share/sddm/themes/keskos/theme.conf"
@@ -106,6 +119,8 @@ main() {
   write_installed_os_release
   cleanup_live_bits
   target_user="$(detect_target_user || true)"
+  log "Applying Calamares software loadout choices."
+  apply_install_choices "$target_user"
   if [[ -n "$target_user" ]]; then
     write_sddm_login_defaults "$target_user"
     log "Configuring installed user defaults for ${target_user}"

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Dunst
+Comment=Notification daemon
+Exec=dunst
+NoDisplay=false
+Categories=System;
+X-GNOME-Autostart-Phase=Panel
+X-GNOME-AutoRestart=true
+OnlyShowIn=KDE;Plasma;
+X-KDE-autostart-phase=1
+X-KDE-autostart-after=panel

@@ -12,6 +12,7 @@ fi
 
 if [[ -t 1 && -z "${KESKOS_FASTFETCH_SHOWN:-}" ]]; then
   export KESKOS_FASTFETCH_SHOWN=1
+  printf '\033]0;%s\007' 'S.P.L.I.T. TERMINAL'
   if command -v fastfetch >/dev/null 2>&1; then
     if [[ -f "$user_fastfetch_config" ]]; then
       fastfetch --config "$user_fastfetch_config" || true
@@ -41,4 +42,3 @@ case "$(basename "$shell_bin")" in
     exec "$shell_bin"
     ;;
 esac
-

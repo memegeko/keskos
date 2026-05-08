@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <group name="General">
+    <entry name="label" type="String">
+      <default>KeskOS Launcher</default>
+    </entry>
+    <entry name="command" type="String">
+      <default>bash -lc 'if [ -x "$HOME/.local/bin/keskos-toggle-wolfi" ]; then exec "$HOME/.local/bin/keskos-toggle-wolfi"; elif [ -x /usr/bin/keskos-toggle-wolfi ]; then exec /usr/bin/keskos-toggle-wolfi; elif [ -x /usr/local/bin/keskos-toggle-wolfi ]; then exec /usr/local/bin/keskos-toggle-wolfi; elif [ -x "$HOME/.local/bin/keskos-launcher" ]; then exec "$HOME/.local/bin/keskos-launcher" --mode main; elif [ -x /usr/local/bin/keskos-launcher ]; then exec /usr/local/bin/keskos-launcher --mode main; elif [ -x /usr/bin/keskos-launcher ]; then exec /usr/bin/keskos-launcher --mode main; else exit 1; fi'</default>
+    </entry>
+  </group>
+</kcfg>

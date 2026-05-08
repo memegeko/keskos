@@ -2,22 +2,57 @@
 set -euo pipefail
 
 SOURCE_ROOT=""
-SCRIPT_BIN="/usr/local/bin/keskos-launcher-script"
+SCRIPT_BIN=""
 MODE="main"
 ACTION=""
+STATE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/keskos"
+STATE_FILE="${STATE_DIR}/launcher-state"
+ROFI_BIN=""
 
 find_source_root() {
   local candidate=""
   for candidate in \
+    "${KESKOS_SOURCE_ROOT:-}" \
+    "$HOME/.local/share/keskos/source" \
     "/usr/local/share/keskos/source" \
-    "/usr/share/keskos/source" \
-    "$HOME/.local/share/keskos/source"
+    "/usr/share/keskos/source"
   do
+    [[ -n "$candidate" ]] || continue
     if [[ -f "$candidate/configs/rofi/keskos.rasi" && -d "$candidate/launcher/kesk_runner" ]]; then
       printf '%s\n' "$candidate"
       return 0
     fi
   done
+  return 1
+}
+
+find_rofi_bin() {
+  local candidate=""
+  for candidate in rofi-wayland rofi; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+find_script_bin() {
+  local candidate=""
+  for candidate in \
+    "$HOME/.local/bin/keskos-launcher-script" \
+    "/usr/local/bin/keskos-launcher-script" \
+    "/usr/bin/keskos-launcher-script" \
+    ""
+  do
+    [[ -n "$candidate" ]] || continue
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
   return 1
 }
 
@@ -49,6 +84,18 @@ STATIC_CONFIG="${SOURCE_ROOT}/configs/rofi/keskos-launcher-static-config.rasi"
 LAUNCHER_ROOT="${SOURCE_ROOT}/launcher"
 
 export PYTHONPATH="${LAUNCHER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+ROFI_BIN="$(find_rofi_bin || true)"
+SCRIPT_BIN="$(find_script_bin || true)"
+
+if [[ -z "$ROFI_BIN" ]]; then
+  printf 'keskos-launcher: missing rofi or rofi-wayland\n' >&2
+  exit 1
+fi
+
+if [[ -z "$SCRIPT_BIN" ]]; then
+  printf 'keskos-launcher: missing keskos-launcher-script\n' >&2
+  exit 1
+fi
 
 if [[ -n "$ACTION" ]]; then
   exec python3 -m kesk_runner action "$ACTION"
@@ -73,12 +120,46 @@ fi
 
 ROFI_MODES="kesk-main:${SCRIPT_BIN} main,kesk-apps:${SCRIPT_BIN} apps,kesk-windows:${SCRIPT_BIN} windows,kesk-settings:${SCRIPT_BIN} settings,kesk-power:${SCRIPT_BIN} power"
 SHOW_MODE="kesk-${MODE}"
+mkdir -p "$STATE_DIR"
 
-exec rofi \
+cleanup_state() {
+  if [[ -f "$STATE_FILE" ]]; then
+    read -r owner_pid _ _ <"$STATE_FILE" || true
+    if [[ "${owner_pid:-}" == "$BASHPID" ]]; then
+      rm -f "$STATE_FILE"
+    fi
+  fi
+}
+
+if [[ -f "$STATE_FILE" ]]; then
+  read -r active_pid active_mode active_rofi_pid <"$STATE_FILE" || true
+  if [[ "${active_pid:-}" =~ ^[0-9]+$ ]] && kill -0 "$active_pid" >/dev/null 2>&1; then
+    if [[ "${active_mode:-}" == "$MODE" ]]; then
+      kill "$active_pid" >/dev/null 2>&1 || true
+      exit 0
+    fi
+    kill "$active_pid" >/dev/null 2>&1 || true
+    if [[ "${active_rofi_pid:-}" =~ ^[0-9]+$ ]]; then
+      kill "$active_rofi_pid" >/dev/null 2>&1 || true
+    fi
+    sleep 0.15
+  else
+    rm -f "$STATE_FILE"
+  fi
+fi
+
+rofi_pid=""
+trap '[[ -n "${rofi_pid:-}" ]] && kill "$rofi_pid" >/dev/null 2>&1 || true; cleanup_state; exit 0' INT TERM
+trap cleanup_state EXIT
+
+"$ROFI_BIN" \
   -show "$SHOW_MODE" \
   -modes "$ROFI_MODES" \
   -config "$CONFIG" \
   -theme "$THEME" \
   -i \
   -no-sort \
-  -matching normal
+  -matching normal &
+rofi_pid="$!"
+printf '%s %s %s\n' "$BASHPID" "$MODE" "$rofi_pid" >"$STATE_FILE"
+wait "$rofi_pid"

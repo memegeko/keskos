@@ -1,0 +1,18 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Authors": [
+      {
+        "Name": "memegeko"
+      }
+    ],
+    "Category": "Application Launchers",
+    "Description": "KeskOS Wolfi launcher button for the Plasma panel",
+    "Icon": "start-here-kde",
+    "Id": "com.keskos.launcherbutton",
+    "License": "GPL-3.0-or-later",
+    "Name": "KeskOS Launcher Button",
+    "Version": "1.0"
+  },
+  "X-Plasma-API-Minimum-Version": "6.0"
+}

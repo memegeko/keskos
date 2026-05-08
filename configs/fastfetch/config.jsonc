@@ -46,7 +46,7 @@
   "modules": [
     {
       "type": "custom",
-      "format": "KESK OS // TERMINAL LAYER"
+      "format": "S.P.L.I.T. // SECURE TERMINAL"
     },
     {
       "type": "title",
@@ -56,12 +56,12 @@
     {
       "type": "custom",
       "key": "OS",
-      "format": "Kesk OS"
+      "format": "KeskOS x86_64"
     },
     {
-      "type": "host",
+      "type": "custom",
       "key": "Host",
-      "format": "{name}"
+      "format": "SPLIT-RIG v1.0"
     },
     {
       "type": "kernel",
@@ -69,22 +69,29 @@
       "format": "{sysname} {release}"
     },
     {
-      "type": "de",
-      "key": "Session"
+      "type": "custom",
+      "key": "DE",
+      "format": "Plasma (Kesk Edition)"
     },
     {
-      "type": "shell",
-      "key": "Shell",
-      "format": "{pretty-name}"
+      "type": "custom",
+      "key": "WM",
+      "format": "KWin (Kesk Border)"
     },
     {
-      "type": "terminal",
+      "type": "custom",
+      "key": "Theme",
+      "format": "Kesk-Dark"
+    },
+    {
+      "type": "custom",
+      "key": "Icons",
+      "format": "Kesk-Icons"
+    },
+    {
+      "type": "custom",
       "key": "Terminal",
-      "format": "{pretty-name}"
-    },
-    {
-      "type": "packages",
-      "key": "Packages"
+      "format": "S.P.L.I.T. TERMINAL"
     },
     "break",
     {
@@ -97,19 +104,9 @@
       "showPeCoreCount": true
     },
     {
-      "type": "gpu",
-      "key": "GPU"
-    },
-    {
       "type": "memory",
       "key": "RAM",
       "format": "{used} / {total} ({percentage-bar} {percentage})"
-    },
-    {
-      "type": "disk",
-      "key": "Disk",
-      "folders": "/",
-      "format": "{size-used} / {size-total} ({size-percentage-bar} {size-percentage})"
     },
     {
       "type": "localip",

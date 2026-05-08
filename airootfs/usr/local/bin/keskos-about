@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE_ROOT="/usr/local/share/keskos/source"
+ABOUT_QML="${SOURCE_ROOT}/configs/about/AboutKeskOS.qml"
+
+if [[ ! -f "$ABOUT_QML" ]]; then
+  printf 'keskos-about: missing AboutKeskOS.qml\n' >&2
+  exit 1
+fi
+
+if command -v qmlscene6 >/dev/null 2>&1; then
+  exec qmlscene6 "$ABOUT_QML"
+fi
+
+if command -v qmlscene >/dev/null 2>&1; then
+  exec qmlscene "$ABOUT_QML"
+fi
+
+printf 'keskos-about: qmlscene is not installed\n' >&2
+exit 1

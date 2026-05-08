@@ -1,0 +1,127 @@
+{
+  "browsers": {
+    "librewolf": {
+      "label": "LibreWolf",
+      "description": "Privacy-focused Firefox-based browser. Hardened defaults. Recommended for KeskOS.",
+      "family": "firefox",
+      "package_candidates": ["librewolf-bin", "librewolf"],
+      "desktop_candidates": ["librewolf.desktop"],
+      "binary_candidates": ["librewolf"]
+    },
+    "zen": {
+      "label": "Zen Browser",
+      "description": "Modern Firefox-based browser focused on workflow and clean UI.",
+      "family": "firefox",
+      "package_candidates": ["zen-browser-bin", "zen-browser"],
+      "desktop_candidates": ["zen-browser.desktop", "zen.desktop"],
+      "binary_candidates": ["zen-browser", "zen"]
+    },
+    "brave": {
+      "label": "Brave",
+      "description": "Chromium-based browser with built-in ad/tracker blocking.",
+      "family": "chromium",
+      "package_candidates": ["brave-bin", "brave-browser", "brave-browser-bin"],
+      "desktop_candidates": ["brave-browser.desktop", "brave.desktop"],
+      "binary_candidates": ["brave-browser", "brave"]
+    }
+  },
+  "bundle_order": [
+    "gaming",
+    "chat",
+    "development",
+    "media",
+    "office",
+    "system_tools",
+    "customization",
+    "drivers_gaming"
+  ],
+  "bundles": {
+    "gaming": {
+      "label": "Gaming",
+      "packages": ["steam", "lutris", "heroic-games-launcher", "mangohud", "gamemode", "goverlay"]
+    },
+    "chat": {
+      "label": "Chat",
+      "packages": ["discord", "vesktop", "telegram-desktop", "signal-desktop"]
+    },
+    "development": {
+      "label": "Development",
+      "packages": ["git", "base-devel", "code", "vscodium", "docker", "docker-compose", "github-cli", "nodejs", "npm", "python", "python-pip"]
+    },
+    "media": {
+      "label": "Media",
+      "packages": ["vlc", "obs-studio", "gimp", "krita", "audacity", "kdenlive"]
+    },
+    "office": {
+      "label": "Office",
+      "packages": ["libreoffice-fresh", "okular", "thunderbird"]
+    },
+    "system_tools": {
+      "label": "System Tools",
+      "packages": ["fastfetch", "btop", "htop", "gparted", "partitionmanager", "timeshift", "kdeconnect"]
+    },
+    "customization": {
+      "label": "Customization",
+      "packages": ["kvantum", "papirus-icon-theme", "qt6ct"]
+    },
+    "drivers_gaming": {
+      "label": "Drivers / Gaming Support",
+      "packages": ["vulkan-tools", "vulkan-icd-loader", "lib32-vulkan-icd-loader", "mesa-utils"]
+    }
+  },
+  "features": {
+    "quickshell_topbar": {
+      "label": "Install KeskOS HUD / Quickshell top bar",
+      "default": true
+    },
+    "kde_bottom_taskbar": {
+      "label": "Use KDE Plasma taskbar bottom panel",
+      "default": true
+    },
+    "plasma_theme": {
+      "label": "Apply KeskOS Plasma theme",
+      "default": true
+    },
+    "window_borders": {
+      "label": "Apply KeskOS window borders",
+      "default": true
+    },
+    "sddm_theme": {
+      "label": "Apply KeskOS SDDM login theme",
+      "default": true
+    },
+    "plymouth": {
+      "label": "Apply KeskOS Plymouth boot splash",
+      "default": true
+    },
+    "browser_startpage": {
+      "label": "Install KeskOS browser startpage",
+      "default": true
+    },
+    "gaming_tools": {
+      "label": "Install gaming performance tools",
+      "default": false,
+      "packages": ["mangohud", "gamemode", "goverlay"]
+    },
+    "bluetooth": {
+      "label": "Enable Bluetooth tools",
+      "default": false,
+      "packages": ["bluez", "bluez-utils"]
+    },
+    "printing": {
+      "label": "Enable printing support",
+      "default": false,
+      "packages": ["cups", "print-manager"]
+    },
+    "docker": {
+      "label": "Enable Docker support",
+      "default": false,
+      "packages": ["docker", "docker-compose"]
+    },
+    "nvidia": {
+      "label": "Enable NVIDIA support",
+      "default": false,
+      "packages": ["nvidia", "nvidia-utils", "nvidia-settings"]
+    }
+  }
+}

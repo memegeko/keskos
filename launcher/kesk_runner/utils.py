@@ -209,7 +209,7 @@ def open_path(target: str, prefer_dolphin: bool = False) -> None:
 
 
 def browser_homepage_url() -> str:
-    homepage_path = "/usr/share/keskos/browser-home/index.html"
+    homepage_path = "/usr/share/keskos/startpage/index.html"
     if Path(homepage_path).is_file():
         return f"file://{homepage_path}"
     return "https://google.com"
@@ -217,8 +217,17 @@ def browser_homepage_url() -> str:
 
 def open_browser(url: str | None = None) -> None:
     target = url or browser_homepage_url()
+    if shutil.which("xdg-open"):
+        launch_detached(["xdg-open", target])
+        return
     if shutil.which("librewolf"):
         launch_detached(["librewolf", target])
+        return
+    if shutil.which("zen-browser"):
+        launch_detached(["zen-browser", target])
+        return
+    if shutil.which("brave-browser"):
+        launch_detached(["brave-browser", target])
         return
     if shutil.which("firefox"):
         launch_detached(["firefox", target])

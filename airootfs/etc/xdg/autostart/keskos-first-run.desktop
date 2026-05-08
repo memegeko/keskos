@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KeskOS Setup Console
+Comment=Optional fallback setup console for KeskOS
+Exec=keskos-first-run --autorun
+Terminal=false
+OnlyShowIn=KDE;
+Hidden=true
+NoDisplay=true
+X-KDE-autostart-phase=2
+X-GNOME-Autostart-enabled=true

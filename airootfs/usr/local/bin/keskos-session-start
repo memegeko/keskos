@@ -5,6 +5,43 @@ LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/keskos"
 LOG_FILE="${LOG_DIR}/session-start.log"
 LOCK_FILE="${LOG_DIR}/session-start.lock"
 
+find_helper() {
+  local helper_name="$1"
+  local candidate=""
+
+  for candidate in \
+    "$HOME/.local/bin/${helper_name}" \
+    "/usr/local/bin/${helper_name}" \
+    "/usr/bin/${helper_name}"
+  do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+resolve_source_root() {
+  local candidate=""
+
+  for candidate in \
+    "${KESKOS_SOURCE_ROOT:-}" \
+    "$HOME/.local/share/keskos/source" \
+    "/usr/local/share/keskos/source" \
+    "/usr/share/keskos/source"
+  do
+    [[ -n "$candidate" ]] || continue
+    if [[ -d "$candidate/configs" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 
@@ -14,10 +51,32 @@ if ! flock -n 9; then
 fi
 
 {
+  source_root="$(resolve_source_root || true)"
+  configure_user="$(find_helper "keskos-configure-user" || true)"
+  wallpaper_apply="$(find_helper "keskos-wallpaper-apply" || true)"
+  shell_launcher="$(find_helper "keskos-shell" || true)"
+
   printf '[%s] starting session helpers\n' "$(date --iso-8601=seconds)"
-  /usr/local/bin/keskos-configure-user || true
-  /usr/local/bin/keskos-wallpaper-apply || true
-  /usr/local/bin/keskos-start-quickshell || true
+  if [[ -n "$configure_user" ]]; then
+    if [[ -n "$source_root" ]]; then
+      SOURCE_ROOT="$source_root" "$configure_user" || true
+    else
+      "$configure_user" || true
+    fi
+  fi
+  if [[ -n "$wallpaper_apply" ]]; then
+    if [[ -n "$source_root" ]]; then
+      KESKOS_SOURCE_ROOT="$source_root" "$wallpaper_apply" || true
+    else
+      "$wallpaper_apply" || true
+    fi
+  fi
+  if [[ -n "$shell_launcher" ]]; then
+    if [[ -n "$source_root" ]]; then
+      KESKOS_SOURCE_ROOT="$source_root" "$shell_launcher" || true
+    else
+      "$shell_launcher" || true
+    fi
+  fi
   printf '[%s] session helpers finished\n' "$(date --iso-8601=seconds)"
 } >>"$LOG_FILE" 2>&1
-

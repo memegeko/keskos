@@ -9,6 +9,12 @@
   An Arch-based KDE Plasma operating system with a dark industrial console style, a custom command launcher, and a fully themed live installer.
 </p>
 
+## Websites
+
+- Main website: [keskos.org](https://keskos.org)
+- Downloads: [download.keskos.org](https://download.keskos.org)
+- Source and release mirror: [GitHub](https://github.com/memegeko/keskos)
+
 ## Current Release
 
 The current ISO release asset is:
@@ -22,7 +28,15 @@ The current ISO release asset is:
 4b88553a0b39fc9567018b872881ac2bd093321787ec4429baba5859a8754b04
 ```
 
-Download it from:
+Primary download:
+
+- [download.keskos.org](https://download.keskos.org)
+
+Main website:
+
+- [keskos.org](https://keskos.org)
+
+GitHub mirror and release notes:
 
 - [GitHub Releases](https://github.com/memegeko/keskos/releases)
 
@@ -55,6 +69,10 @@ It is meant to feel like a complete product instead of a loose rice script:
 - a custom window decoration theme built for the rest of the OS look
 - a desktop that stays visually consistent across the live session and installed system
 
+Project planning and active work are tracked in:
+
+- [ROADMAP.md](ROADMAP.md)
+
 ## Main Features
 
 ### Live ISO
@@ -76,7 +94,8 @@ KeskOS installs through Calamares with a custom visual style and standard guided
 - Keyboard
 - Partitions
 - Users
-- Summary
+- Software loadout
+- Deploy review
 - Install
 - Finish
 
@@ -88,6 +107,7 @@ The installed system carries over the visual identity:
 - `KESK` launcher shortcuts
 - custom Konsole profile
 - custom browser home page
+- browser selection during install
 - prefilled username on the first login screen after install
 - custom login / lock / splash stack
 
@@ -126,36 +146,16 @@ The installed system carries over the visual identity:
 ### Installer Flow
 
 <p align="center">
-  <img src="docs/screenshots/keskos_installstep_welcome.png" alt="KeskOS installer welcome screen" width="780">
+  <img src="docs/screenshots/keskos_installer.png" alt="KeskOS installer overview" width="780">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/keskos_installstep_location.png" alt="KeskOS installer location screen" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskos_installstep_keyboard.png" alt="KeskOS installer keyboard screen" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskos_installstep_partitions.png" alt="KeskOS installer partition screen" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskos_installstep_users.png" alt="KeskOS installer users screen" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskos_installstep_summary.png" alt="KeskOS installer summary screen" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskos_installstep_finish.png" alt="KeskOS installer finish screen" width="780">
+  <img src="docs/screenshots/keskos_installing.png" alt="KeskOS installer deployment screen" width="780">
 </p>
 
 ## Installing KeskOS
 
-1. Download the latest release asset from [Releases](https://github.com/memegeko/keskos/releases).
+1. Download the latest release from [download.keskos.org](https://download.keskos.org).
 2. Extract the ISO:
 
 ```bash
@@ -185,7 +185,7 @@ KeskOS currently ships with these major pieces:
 - `rofi`-based `KESK` launcher
 - Konsole
 - Dolphin
-- Firefox / browser integration for the live environment
+- browser selection flow for LibreWolf, Zen Browser, or Brave
 - custom SDDM, lock screen, and splash
 - custom wallpaper, HUD, and branding assets
 
@@ -195,6 +195,7 @@ This ISO line includes:
 
 - a real live desktop instead of the old script-only setup path
 - a themed Calamares installer
+- installer-time browser and software loadout selection
 - a seam-free custom window decoration path
 - launcher, browser, files, and terminal wired into the live session
 - post-install user defaults and first-login polish

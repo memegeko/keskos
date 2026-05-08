@@ -1,6 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+resolve_asset_dir() {
+  local candidate=""
+
+  for candidate in \
+    "${KESKOS_WALLPAPER_DIR:-}" \
+    "${KESKOS_SOURCE_ROOT:-}/assets" \
+    "$HOME/.local/share/keskos/source/assets" \
+    "/usr/local/share/keskos/source/assets" \
+    "/usr/share/keskos/source/assets" \
+    "/usr/share/backgrounds/keskos"
+  do
+    [[ -n "$candidate" ]] || continue
+    if [[ -d "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 detect_screen_width() {
   local width=""
 
@@ -8,8 +29,15 @@ detect_screen_width() {
     width="$(
       kscreen-doctor -o 2>/dev/null | awk '
         /enabled/ && match($0, /([0-9]+)x([0-9]+)/, found) {
-          print found[1];
-          exit;
+          current = found[1] + 0;
+          if (current > max) {
+            max = current;
+          }
+        }
+        END {
+          if (max > 0) {
+            print max;
+          }
         }
       ' || true
     )"
@@ -22,8 +50,10 @@ detect_screen_width() {
           for (i = 1; i <= NF; i++) {
             if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+$/) {
               split($i, parts, /x|\+/);
-              print parts[1];
-              exit;
+              current = parts[1] + 0;
+              if (current > max) {
+                max = current;
+              }
             }
           }
         }
@@ -31,14 +61,23 @@ detect_screen_width() {
           for (i = 1; i <= NF; i++) {
             if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+$/) {
               split($i, parts, /x|\+/);
-              print parts[1];
-              exit;
+              current = parts[1] + 0;
+              if (current > max) {
+                max = current;
+              }
             }
           }
         }
         match($0, /current[[:space:]]+([0-9]+)/, found) {
-          print found[1];
-          exit;
+          current = found[1] + 0;
+          if (current > max) {
+            max = current;
+          }
+        }
+        END {
+          if (max > 0) {
+            print max;
+          }
         }
       ' || true
     )"
@@ -53,7 +92,16 @@ detect_screen_width() {
 
 select_wallpaper() {
   local width="$1"
-  local asset_dir="/usr/share/backgrounds/keskos"
+  local asset_dir=""
+
+  if ! asset_dir="$(resolve_asset_dir)"; then
+    return 1
+  fi
+
+  if [[ -f "${asset_dir}/wallpaper.jpg" ]]; then
+    printf '%s\n' "${asset_dir}/wallpaper.jpg"
+    return 0
+  fi
 
   if (( width >= 3840 )) && [[ -f "${asset_dir}/wallpaper-4096x2160.png" ]]; then
     printf '%s\n' "${asset_dir}/wallpaper-4096x2160.png"
@@ -71,10 +119,10 @@ select_wallpaper() {
   fi
 
   for candidate in \
-    "${asset_dir}/wallpaper.svg" \
-    "${asset_dir}/wallpaper.png" \
     "${asset_dir}/wallpaper.jpg" \
-    "${asset_dir}/wallpaper.jpeg"; do
+    "${asset_dir}/wallpaper.jpeg" \
+    "${asset_dir}/wallpaper.png" \
+    "${asset_dir}/wallpaper.svg"; do
     if [[ -f "$candidate" ]]; then
       printf '%s\n' "$candidate"
       return 0
@@ -161,4 +209,3 @@ main() {
 }
 
 main "$@"
-

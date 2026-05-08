@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_NAME="keskos"
+CONFIG_DIR="${HOME}/.config/quickshell/${CONFIG_NAME}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/keskos"
+LOG_FILE="${STATE_DIR}/quickshell.log"
+PID_FILE="${STATE_DIR}/quickshell.pid"
+
+resolve_source_root() {
+  local candidate=""
+
+  for candidate in \
+    "${KESKOS_SOURCE_ROOT:-}" \
+    "$HOME/.local/share/keskos/source" \
+    "/usr/local/share/keskos/source" \
+    "/usr/share/keskos/source"
+  do
+    [[ -n "$candidate" ]] || continue
+    if [[ -d "$candidate/configs/quickshell/${CONFIG_NAME}" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+resolve_quickshell_bin() {
+  if command -v quickshell >/dev/null 2>&1; then
+    command -v quickshell
+    return 0
+  fi
+
+  return 1
+}
+
+clear_legacy_eww() {
+  pkill -x eww >/dev/null 2>&1 || true
+
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user stop eww.service keskos-eww.service eww-daemon.service >/dev/null 2>&1 || true
+  fi
+}
+
+sync_quickshell_config() {
+  local source_root=""
+  local source_config_dir=""
+
+  if ! source_root="$(resolve_source_root)"; then
+    return 0
+  fi
+
+  source_config_dir="${source_root}/configs/quickshell/${CONFIG_NAME}"
+
+  [[ -d "$source_config_dir" ]] || return 0
+
+  rm -rf "$CONFIG_DIR"
+  mkdir -p "$(dirname "$CONFIG_DIR")"
+  cp -a "$source_config_dir" "$CONFIG_DIR"
+}
+
+existing_shell_pid() {
+  local candidate=""
+
+  if [[ -f "$PID_FILE" ]]; then
+    candidate="$(<"$PID_FILE")"
+    if [[ "$candidate" =~ ^[0-9]+$ ]] && kill -0 "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  fi
+
+  candidate="$(
+    pgrep -u "$(id -u)" -af quickshell \
+      | awk -v config_dir="$CONFIG_DIR" '
+          $0 ~ /quickshell/ && (index($0, "--config keskos") > 0 || index($0, config_dir) > 0) {
+            print $1;
+            exit;
+          }
+        '
+  )"
+
+  if [[ "$candidate" =~ ^[0-9]+$ ]] && kill -0 "$candidate" >/dev/null 2>&1; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
+  return 1
+}
+
+main() {
+  local quickshell_bin=""
+  local running_pid=""
+
+  [[ "${KESKOS_DISABLE_SHELL:-0}" != "1" ]] || exit 0
+
+  mkdir -p "$STATE_DIR"
+  touch "$LOG_FILE"
+
+  clear_legacy_eww
+  sync_quickshell_config
+
+  if ! quickshell_bin="$(resolve_quickshell_bin)"; then
+    printf '[keskos-shell] quickshell was not found; skipping shell startup\n' >>"$LOG_FILE"
+    exit 0
+  fi
+
+  if [[ ! -f "${CONFIG_DIR}/shell.qml" ]]; then
+    printf '[keskos-shell] quickshell config missing: %s\n' "${CONFIG_DIR}/shell.qml" >>"$LOG_FILE"
+    exit 0
+  fi
+
+  if running_pid="$(existing_shell_pid)"; then
+    printf '[keskos-shell] quickshell already running with pid=%s\n' "$running_pid" >>"$LOG_FILE"
+    exit 0
+  fi
+
+  nohup setsid env \
+    QS_NO_RELOAD_POPUP=1 \
+    "$quickshell_bin" --config "$CONFIG_DIR" >>"$LOG_FILE" 2>&1 </dev/null &
+  printf '%s\n' "$!" >"$PID_FILE"
+}
+
+main "$@"

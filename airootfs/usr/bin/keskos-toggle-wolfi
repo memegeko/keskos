@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/keskos"
+LOG_FILE="${LOG_DIR}/wolfi-toggle.log"
+
+find_backend() {
+  local candidate=""
+  for candidate in \
+    "/usr/local/bin/keskos-launcher" \
+    "/usr/bin/keskos-launcher" \
+    "$HOME/.local/bin/keskos-launcher"
+  do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+mkdir -p "$LOG_DIR"
+
+BACKEND="$(find_backend || true)"
+
+if [[ -z "$BACKEND" ]]; then
+  printf '[%s] missing backend: %s\n' "$(date -Is)" "$BACKEND" >>"$LOG_FILE"
+  printf 'keskos-toggle-wolfi: missing backend launcher\n' >&2
+  exit 1
+fi
+
+if ! "$BACKEND" --mode main >>"$LOG_FILE" 2>&1; then
+  status=$?
+  printf '[%s] backend failed with status %s\n' "$(date -Is)" "$status" >>"$LOG_FILE"
+  exit "$status"
+fi

@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/keskos"
+LOG_FILE="${STATE_DIR}/display-watch.log"
+LOCK_FILE="${STATE_DIR}/display-watch.lock"
+POLL_INTERVAL="${KESKOS_DISPLAY_WATCH_INTERVAL:-3}"
+
+find_helper() {
+  local helper_name="$1"
+  local candidate=""
+
+  for candidate in \
+    "$HOME/.local/bin/${helper_name}" \
+    "/usr/local/bin/${helper_name}" \
+    "/usr/bin/${helper_name}"
+  do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+layout_signature() {
+  if command -v kscreen-doctor >/dev/null 2>&1; then
+    kscreen-doctor -o 2>/dev/null \
+      | sed -e 's/[[:space:]]\+/ /g' -e 's/^ //g' -e '/^$/d'
+    return 0
+  fi
+
+  if command -v xrandr >/dev/null 2>&1; then
+    xrandr --current 2>/dev/null \
+      | sed -e 's/[[:space:]]\+/ /g' -e 's/^ //g' -e '/^$/d'
+    return 0
+  fi
+
+  return 1
+}
+
+reapply_layout() {
+  local wallpaper_apply=""
+  local configure_user=""
+  local shell_launcher=""
+
+  wallpaper_apply="$(find_helper "keskos-wallpaper-apply" || true)"
+  configure_user="$(find_helper "keskos-configure-user" || true)"
+  shell_launcher="$(find_helper "keskos-shell" || true)"
+
+  printf '[%s] display change detected; reapplying shell state\n' "$(date --iso-8601=seconds)" >>"$LOG_FILE"
+
+  if [[ -n "$wallpaper_apply" ]]; then
+    "$wallpaper_apply" >>"$LOG_FILE" 2>&1 || true
+  fi
+
+  if [[ -n "$configure_user" ]]; then
+    "$configure_user" >>"$LOG_FILE" 2>&1 || true
+  fi
+
+  pkill -x quickshell >/dev/null 2>&1 || true
+
+  if [[ -n "$shell_launcher" ]]; then
+    "$shell_launcher" >>"$LOG_FILE" 2>&1 || true
+  fi
+}
+
+main() {
+  local previous_signature=""
+  local current_signature=""
+
+  mkdir -p "$STATE_DIR"
+  touch "$LOG_FILE"
+
+  exec 9>"$LOCK_FILE"
+  if ! flock -n 9; then
+    exit 0
+  fi
+
+  previous_signature="$(layout_signature || true)"
+  printf '[%s] starting display watch\n' "$(date --iso-8601=seconds)" >>"$LOG_FILE"
+
+  while sleep "$POLL_INTERVAL"; do
+    current_signature="$(layout_signature || true)"
+
+    if [[ -z "$current_signature" || "$current_signature" == "$previous_signature" ]]; then
+      continue
+    fi
+
+    previous_signature="$current_signature"
+    reapply_layout
+  done
+}
+
+main "$@"

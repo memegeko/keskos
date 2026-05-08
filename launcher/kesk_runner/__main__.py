@@ -211,8 +211,8 @@ def build_results(mode: str, query: str, store: RecentStore, state: dict) -> tup
         results.extend(recent.search(context, query, store))
         results.extend(settings.search(context, query))
         results.extend(apps.search(context, query))
-        results.extend(places.search(context, query))
-        results.extend(files.search(context, query))
+        # results.extend(places.search(context, query))  # Disabled for performance
+        # results.extend(files.search(context, query))  # Disabled for performance
         results.extend(web.search(context, query))
         results.extend(power.search(context, query))
         results.extend(commands.search(context, query))

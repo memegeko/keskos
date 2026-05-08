@@ -1,6 +1,7 @@
 arch-install-scripts
 aurorae
 base
+btop
 btrfs-progs
 calamares
 cryptsetup
@@ -8,20 +9,23 @@ device-mapper
 discover
 dolphin
 dosfstools
+dunst
 e2fsprogs
 efibootmgr
 f2fs-tools
 fastfetch
-firefox
+brave-bin
 grub
 gptfdisk
 iproute2
 jq
+kdialog
 kate
 kde-cli-tools
 kdotool-bin
 konsole
 kpmcore
+librewolf-bin
 libpwquality
 linux
 linux-firmware
@@ -33,6 +37,7 @@ networkmanager
 ntfs-3g
 packagekit-qt6
 partitionmanager
+playerctl
 pipewire
 pipewire-pulse
 plasma-desktop
@@ -42,6 +47,7 @@ plasma-workspace
 polkit-kde-agent
 procps-ng
 python
+pyside6
 python-pyxdg
 qemu-guest-agent
 qt6-5compat
@@ -67,3 +73,4 @@ xclip
 xdg-desktop-portal-kde
 xdg-utils
 xorg-xwayland
+zen-browser-bin

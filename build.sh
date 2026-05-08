@@ -11,9 +11,11 @@ LOCAL_REPO_DIR="${WORK_ROOT}/localrepo/x86_64"
 GENERATED_PACMAN_CONF="${WORK_ROOT}/pacman.conf"
 AUR_BUILD_ROOT="${SAFE_BUILD_ROOT}/aur"
 AUR_PKGDEST="${SAFE_BUILD_ROOT}/pkgdest"
+GNUPG_BUILD_HOME="${SAFE_BUILD_ROOT}/gnupg"
 SOURCE_DATE="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 ISO_VERSION="${KESKOS_ISO_VERSION:-$(date --date="@${SOURCE_DATE}" +%Y.%m.%d)}"
-AUR_PACKAGES=(calamares kdotool-bin)
+AUR_PACKAGES=(calamares kdotool-bin librewolf-bin zen-browser-bin brave-bin)
+SKIP_PGP_FALLBACK_PACKAGES=(librewolf-bin zen-browser-bin brave-bin)
 
 log() {
   printf '[keskos-build] %s\n' "$1"
@@ -26,6 +28,20 @@ warn() {
 fail() {
   printf '[keskos-build] error: %s\n' "$1" >&2
   exit 1
+}
+
+array_contains() {
+  local needle="$1"
+  shift || true
+  local item
+
+  for item in "$@"; do
+    if [[ "$item" == "$needle" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 cleanup_safe_build_root() {
@@ -68,6 +84,9 @@ check_dependencies() {
     "sed:sed"
     "install:coreutils"
     "bsdtar:libarchive"
+    "patch:patch"
+    "gpg:gnupg"
+    "python3:python"
     "sudo:sudo"
   )
   local dep
@@ -87,11 +106,65 @@ prepare_workdirs() {
   mkdir -p "$STAGE_DIR" "$ARCHISO_WORK_DIR"
   mkdir -p "$LOCAL_REPO_DIR"
   mkdir -p "$AUR_BUILD_ROOT" "$AUR_PKGDEST"
+  mkdir -p "$GNUPG_BUILD_HOME"
+  chmod 700 "$GNUPG_BUILD_HOME"
 
   log "Using temporary build root: ${SAFE_BUILD_ROOT}"
   if [[ "$REPO_ROOT" == *" "* ]]; then
     log "Repo path contains spaces; staging Archiso and AUR builds outside the repo to avoid makepkg/CMake and chroot path issues."
   fi
+}
+
+init_build_keyring() {
+  GNUPGHOME="$GNUPG_BUILD_HOME" gpg --batch --list-keys >/dev/null 2>&1 || true
+}
+
+pkgbuild_validpgpkeys() {
+  local package_dir="$1"
+  (
+    cd "$package_dir"
+    bash -c 'set -euo pipefail; source ./PKGBUILD >/dev/null 2>&1; for key in "${validpgpkeys[@]:-}"; do printf "%s\n" "$key"; done'
+  )
+}
+
+import_pkgbuild_keys() {
+  local package_name="$1"
+  local package_dir="$2"
+  local -a keys=()
+  local -a keyservers=(
+    "hkps://keys.openpgp.org"
+    "hkps://keyserver.ubuntu.com"
+  )
+  local key=""
+  local keyserver=""
+  local imported=0
+
+  mapfile -t keys < <(pkgbuild_validpgpkeys "$package_dir" 2>/dev/null || true)
+  if (( ${#keys[@]} == 0 )); then
+    return 0
+  fi
+
+  init_build_keyring
+
+  for key in "${keys[@]}"; do
+    [[ -n "$key" ]] || continue
+    if GNUPGHOME="$GNUPG_BUILD_HOME" gpg --batch --list-keys "$key" >/dev/null 2>&1; then
+      continue
+    fi
+
+    imported=0
+    for keyserver in "${keyservers[@]}"; do
+      if GNUPGHOME="$GNUPG_BUILD_HOME" gpg --batch --keyserver "$keyserver" --recv-keys "$key" >/dev/null 2>&1; then
+        log "Imported PGP key ${key} for ${package_name} from ${keyserver}."
+        imported=1
+        break
+      fi
+    done
+
+    if (( imported == 0 )); then
+      warn "Could not import PGP key ${key} for ${package_name}; build may require the browser-package fallback."
+    fi
+  done
 }
 
 build_aur_package() {
@@ -107,10 +180,43 @@ build_aur_package() {
     git -C "$package_dir" reset --hard origin/master
   fi
 
+  if [[ "$package_name" == "calamares" ]]; then
+    log "Patching AUR calamares PKGBUILD to keep packagechooser modules enabled and apply KeskOS UI polish..."
+    install -m 644 "${REPO_ROOT}/calamares/patches/keskos_calamares_ui.py" \
+      "${package_dir}/keskos_calamares_ui.py"
+    python3 - "$package_dir/PKGBUILD" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+for needle in (
+    "    packagechooser\n",
+    "    packagechooserq\n",
+):
+    text = text.replace(needle, "")
+marker = '  local _cmake_options=(\n'
+snippet = """  python3 \"$startdir/keskos_calamares_ui.py\" \"$_pkgsrc_dir\"\n\n"""
+if snippet not in text:
+    text = text.replace(marker, snippet + marker, 1)
+path.write_text(text, encoding="utf-8")
+PY
+  fi
+
   log "Building ${package_name} for the local ISO repository..."
   (
     cd "$package_dir"
-    PKGDEST="${AUR_PKGDEST}" makepkg --syncdeps --needed --noconfirm --cleanbuild --clean
+    import_pkgbuild_keys "$package_name" "$package_dir"
+    if ! GNUPGHOME="$GNUPG_BUILD_HOME" PKGDEST="${AUR_PKGDEST}" \
+      makepkg --syncdeps --needed --noconfirm --cleanbuild --clean; then
+      if array_contains "$package_name" "${SKIP_PGP_FALLBACK_PACKAGES[@]}"; then
+        warn "Retrying ${package_name} with --skippgpcheck after key import failed."
+        GNUPGHOME="$GNUPG_BUILD_HOME" PKGDEST="${AUR_PKGDEST}" \
+          makepkg --syncdeps --needed --noconfirm --cleanbuild --clean --skippgpcheck
+      else
+        return 1
+      fi
+    fi
   )
 
   find "$AUR_PKGDEST" -maxdepth 1 -type f -name "${package_name}-*.pkg.tar.*" -exec cp -f {} "$LOCAL_REPO_DIR/" \;
@@ -146,10 +252,12 @@ stage_source_tree() {
   mkdir -p "$source_root"
 
   cp -a "${REPO_ROOT}/assets" "$source_root/"
+  cp -a "${REPO_ROOT}/calamares" "$source_root/"
   cp -a "${REPO_ROOT}/configs" "$source_root/"
   cp -a "${REPO_ROOT}/launcher" "$source_root/"
   cp -a "${REPO_ROOT}/desktop" "$source_root/"
   cp -a "${REPO_ROOT}/browser-home" "$source_root/"
+  cp -a "${REPO_ROOT}/docs" "$source_root/"
   install -m 644 "${REPO_ROOT}/assets/spinner.png" "$source_root/spinner.png"
   install -m 644 "${REPO_ROOT}/assets/kesk_os_logo_text.png" "$source_root/kesk_os_logo_text.png"
   install -m 644 "${REPO_ROOT}/assets/kesk_os_logo-removebg.png" "$source_root/kesk_os_logo-removebg.png"
@@ -160,6 +268,7 @@ stage_live_system_assets() {
 
   rm -rf \
     "${root}/usr/share/keskos/browser-home" \
+    "${root}/usr/share/keskos/startpage" \
     "${root}/usr/share/calamares/branding/keskos" \
     "${root}/etc/calamares/modules"
 
@@ -169,10 +278,12 @@ stage_live_system_assets() {
     "${root}/usr/share/aurorae/themes" \
     "${root}/usr/share/kwin/decorations" \
     "${root}/usr/share/backgrounds/keskos" \
+    "${root}/usr/share/plasma/plasmoids" \
     "${root}/usr/share/plasma/look-and-feel/com.keskos.desktop" \
     "${root}/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/assets" \
     "${root}/usr/share/sddm/themes/keskos/assets" \
     "${root}/usr/share/keskos/browser-home" \
+    "${root}/usr/share/keskos/startpage" \
     "${root}/usr/share/calamares/branding/keskos" \
     "${root}/etc/calamares/modules"
 
@@ -182,12 +293,15 @@ stage_live_system_assets() {
   cp -a "${REPO_ROOT}/configs/aurorae/themes/KeskOS-SPLIT" "${root}/usr/share/aurorae/themes/"
   cp -a "${REPO_ROOT}/configs/kwin/decorations/kwin4_decoration_qml_keskos_split" "${root}/usr/share/kwin/decorations/"
 
+  install -m 644 "${REPO_ROOT}/assets/wallpaper.jpg" "${root}/usr/share/backgrounds/keskos/wallpaper.jpg"
   install -m 644 "${REPO_ROOT}/assets/wallpaper.svg" "${root}/usr/share/backgrounds/keskos/wallpaper.svg"
   install -m 644 "${REPO_ROOT}/assets/wallpaper-1920x1080.png" "${root}/usr/share/backgrounds/keskos/wallpaper-1920x1080.png"
   install -m 644 "${REPO_ROOT}/assets/wallpaper-2560x1440.png" "${root}/usr/share/backgrounds/keskos/wallpaper-2560x1440.png"
   install -m 644 "${REPO_ROOT}/assets/wallpaper-4096x2160.png" "${root}/usr/share/backgrounds/keskos/wallpaper-4096x2160.png"
   install -m 644 "${REPO_ROOT}/assets/kesk_os_logo_text.png" "${root}/usr/share/backgrounds/keskos/kesk_os_logo_text.png"
 
+  cp -a "${REPO_ROOT}/configs/plasmoids/com.keskos.launcherbutton" "${root}/usr/share/plasma/plasmoids/"
+  cp -a "${REPO_ROOT}/configs/plasmoids/com.keskos.workspaceswitcher" "${root}/usr/share/plasma/plasmoids/"
   cp -a "${REPO_ROOT}/configs/look-and-feel/com.keskos.desktop/." "${root}/usr/share/plasma/look-and-feel/com.keskos.desktop/"
   install -m 644 "${REPO_ROOT}/configs/look-and-feel/com.keskos.desktop/contents/lockscreen/assets/background.png" "${root}/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/assets/background.png"
   install -m 644 "${REPO_ROOT}/configs/look-and-feel/com.keskos.desktop/contents/lockscreen/assets/logo.png" "${root}/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/assets/logo.png"
@@ -199,6 +313,7 @@ stage_live_system_assets() {
   install -m 644 "${REPO_ROOT}/assets/kesk_os_logo_text.png" "${root}/usr/share/sddm/themes/keskos/assets/logo.png"
 
   cp -a "${REPO_ROOT}/browser-home/." "${root}/usr/share/keskos/browser-home/"
+  cp -a "${REPO_ROOT}/browser-home/." "${root}/usr/share/keskos/startpage/"
 
   install -m 644 "${REPO_ROOT}/calamares/settings.conf" "${root}/etc/calamares/settings.conf"
   cp -a "${REPO_ROOT}/calamares/modules/." "${root}/etc/calamares/modules/"

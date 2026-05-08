@@ -24,12 +24,12 @@ find_launcher_root() {
 
 mode_prompt() {
   case "$MODE" in
-    main) printf 'KESK >\n' ;;
-    apps) printf 'APPS >\n' ;;
-    windows) printf 'WINDOWS >\n' ;;
-    settings) printf 'SETTINGS >\n' ;;
-    power) printf 'POWER >\n' ;;
-    *) printf 'KESK >\n' ;;
+    main) printf 'WOLFI // KESKOS MENU\n' ;;
+    apps) printf 'KESKOS // APPLICATION INDEX\n' ;;
+    windows) printf 'KESKOS // WINDOW INDEX\n' ;;
+    settings) printf 'KESKOS // CONTROL INDEX\n' ;;
+    power) printf 'KESKOS // POWER INDEX\n' ;;
+    *) printf 'WOLFI // KESKOS MENU\n' ;;
   esac
 }
 
