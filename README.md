@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Legacy systems. Modern workflows.</strong><br>
-  An Arch-based KDE Plasma operating system with a dark industrial console style, a custom command launcher, and a fully themed live installer.
+  An Arch-based KDE Plasma operating system with a dark industrial console style, a custom command launcher, and a fully themed live installer..
 </p>
 
 ## Websites
