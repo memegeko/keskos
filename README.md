@@ -9,6 +9,8 @@
   An Arch-based KDE Plasma operating system with a dark industrial console style, a patched KDE Plasma launcher, and a fully themed live installer.
 </p>
 
+> BETA BRANCH: DO NOT USE. TESTING ONLY.
+>
 > Current active beta work for KeskOS now lives on the `beta-development` branch.
 
 ## Websites
