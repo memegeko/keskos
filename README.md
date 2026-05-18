@@ -9,6 +9,8 @@
   An Arch-based KDE Plasma operating system with a dark industrial console style, a patched KDE Plasma launcher, and a fully themed live installer.
 </p>
 
+> Current active beta work for KeskOS now lives on the `beta-development` branch.
+
 ## Websites
 
 - Main website: [keskos.org](https://keskos.org)
@@ -54,6 +56,7 @@ Project planning and active work are tracked in:
 - [docs/launcher-switching.md](docs/launcher-switching.md)
 - [docs/plasma-panel-layout.md](docs/plasma-panel-layout.md)
 - [docs/keybinds.md](docs/keybinds.md)
+- [docs/website-content/README.md](docs/website-content/README.md)
 
 ## Main Features
 
@@ -185,16 +188,24 @@ This ISO line includes:
 - post-install user defaults and first-login polish
 - branded login, lock screen, splash, and browser home
 
-## Source and Legacy Branch
+## Branches
 
-The repo still keeps the old script installer work safely preserved.
+The repo keeps both the stable project line and the active beta development line available.
 
 Branches:
 
+- `beta-development`
+  - the current active beta branch for in-progress installer, updater, and desktop integration work
 - `main`
-  - the current Archiso + Calamares ISO project
+  - the mainline branch
 - `legacy-script-installer`
   - the original script-based installer work
+
+If you want the newest beta work first, use:
+
+```bash
+git checkout beta-development
+```
 
 Switch branches with:
 

@@ -207,11 +207,11 @@ function removeConflictingBottomPanels(keepPanel) {
             continue;
         }
 
-        if (panel.screen !== 0) {
+        if (!isBottomPanel(panel)) {
             continue;
         }
 
-        if (!isBottomPanel(panel)) {
+        if (screenCount > 1 && keepPanel && panel.screen !== keepPanel.screen) {
             continue;
         }
 

@@ -25,6 +25,14 @@ install -m 0644 \
   /usr/local/share/keskos/source/configs/look-and-feel/com.keskos.desktop/contents/lockscreen/LockScreen.qml \
   /usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreen.qml
 
+if [[ -f /usr/bin/kesk ]]; then
+  chmod 0755 /usr/bin/kesk
+fi
+
+if [[ -f /usr/lib/kesk/commands/upgrade ]]; then
+  chmod 0755 /usr/lib/kesk/commands/upgrade
+fi
+
 if [[ -f /home/liveuser/Desktop/Install\ KeskOS.desktop ]]; then
   chmod +x /home/liveuser/Desktop/Install\ KeskOS.desktop
 fi

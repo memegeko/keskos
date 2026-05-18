@@ -448,6 +448,85 @@ configure_lockscreen_and_splash() {
   "$kwriteconfig_bin" --file "$ksplashrc" --group KSplash --key Theme "com.keskos.desktop"
 }
 
+prune_unmanaged_plasma_panels() {
+  local appletsrc="$TARGET_HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+  local temp_file=""
+
+  [[ -f "$appletsrc" ]] || return 1
+
+  temp_file="$(mktemp)"
+
+  awk -v marker="keskos-bottom-panel-v1" '
+    function flush_containment() {
+      if (!in_containment) {
+        return
+      }
+
+      if (!(is_panel && !has_marker)) {
+        printf "%s", block
+      }
+
+      block = ""
+      in_containment = 0
+      current_id = ""
+      is_panel = 0
+      has_marker = 0
+    }
+
+    {
+      if (match($0, /^\[Containments\]\[([0-9]+)\](\[.*\])?$/, matches)) {
+        if (in_containment && matches[1] != current_id) {
+          flush_containment()
+        }
+
+        if (!in_containment) {
+          in_containment = 1
+          current_id = matches[1]
+          block = ""
+          is_panel = 0
+          has_marker = 0
+        }
+
+        block = block $0 ORS
+        next
+      }
+
+      if (in_containment) {
+        block = block $0 ORS
+
+        if ($0 == "plugin=org.kde.panel") {
+          is_panel = 1
+        }
+
+        if ($0 == "keskosPanel=" marker) {
+          has_marker = 1
+        }
+
+        next
+      }
+
+      print
+    }
+
+    END {
+      flush_containment()
+    }
+  ' "$appletsrc" >"$temp_file"
+
+  if cmp -s "$temp_file" "$appletsrc"; then
+    rm -f "$temp_file"
+    return 1
+  fi
+
+  mv "$temp_file" "$appletsrc"
+
+  if [[ ${EUID} -eq 0 ]]; then
+    chown "$TARGET_USER:$TARGET_USER" "$appletsrc"
+  fi
+
+  return 0
+}
+
 resolve_kesk_panel_id() {
   local marker="${1:-keskos-bottom-panel-v1}"
   local appletsrc="$TARGET_HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
@@ -489,6 +568,7 @@ configure_plasma_panel() {
   local script=""
   local panel_id=""
   local attempt=0
+  local pass=0
 
   [[ "$OFFLINE" -eq 0 ]] || return 0
   [[ "$FEATURE_KDE_BOTTOM_TASKBAR" -eq 1 ]] || return 0
@@ -508,12 +588,17 @@ configure_plasma_panel() {
 
   script="$(<"$script_path")"
   script="${script/const DEFAULT_LAUNCHER_MODE = \"keskos\";/const DEFAULT_LAUNCHER_MODE = \"$LAUNCHER_MODE\";}"
-  "$qdbus_bin" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 || true
+  for pass in 1 2; do
+    "$qdbus_bin" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$script" >/dev/null 2>&1 || true
 
-  for attempt in 1 2 3 4 5; do
-    panel_id="$(resolve_kesk_panel_id "keskos-bottom-panel-v1" || true)"
-    [[ -n "$panel_id" ]] && break
-    sleep 0.2
+    for attempt in 1 2 3 4 5; do
+      panel_id="$(resolve_kesk_panel_id "keskos-bottom-panel-v1" || true)"
+      [[ -n "$panel_id" ]] && break
+      sleep 0.2
+    done
+
+    [[ "$pass" -eq 2 ]] && break
+    sleep 2
   done
 
   configure_plasma_panel_view "$panel_id" 48
@@ -528,6 +613,24 @@ refresh_runtime() {
 
   if [[ -n "$qdbus_bin" ]]; then
     "$qdbus_bin" org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+  fi
+}
+
+restart_plasmashell() {
+  [[ "$OFFLINE" -eq 0 ]] || return 0
+
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user restart plasma-plasmashell.service >/dev/null 2>&1 && return 0
+  fi
+
+  if command -v kquitapp6 >/dev/null 2>&1; then
+    kquitapp6 plasmashell >/dev/null 2>&1 || true
+  elif command -v kquitapp5 >/dev/null 2>&1; then
+    kquitapp5 plasmashell >/dev/null 2>&1 || true
+  fi
+
+  if command -v plasmashell >/dev/null 2>&1; then
+    nohup plasmashell --replace >/tmp/keskos-plasmashell.log 2>&1 &
   fi
 }
 
@@ -579,6 +682,11 @@ main() {
   configure_shortcuts
   configure_lockscreen_and_splash
   configure_plasma_panel
+  if prune_unmanaged_plasma_panels; then
+    restart_plasmashell
+    sleep 2
+    configure_plasma_panel
+  fi
   refresh_runtime
   fix_ownership
   log "Configured KeskOS defaults for ${TARGET_USER}"

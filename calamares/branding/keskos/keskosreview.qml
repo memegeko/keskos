@@ -83,7 +83,7 @@ Item {
         if (profileSelection.length && profileSelection[0] === "plasma_base") {
             return "KDE Plasma Base Profile"
         }
-        return "KeskOS HUD Profile"
+        return "KeskOS Split Shell Profile"
     }
 
     function addonText() {

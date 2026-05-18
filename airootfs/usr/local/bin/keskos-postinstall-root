@@ -5,6 +5,42 @@ log() {
   printf '[keskos-postinstall] %s\n' "$1"
 }
 
+ensure_pacman_mirrorlist() {
+  mkdir -p /etc/pacman.d
+
+  if [[ -s /etc/pacman.d/mirrorlist ]] && grep -Eq '^[[:space:]]*Server[[:space:]]*=' /etc/pacman.d/mirrorlist; then
+    return 0
+  fi
+
+  cat >/etc/pacman.d/mirrorlist <<'EOF'
+## KeskOS fallback Arch Linux mirrorlist
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+EOF
+}
+
+write_installed_pacman_conf() {
+  ensure_pacman_mirrorlist
+
+  cat >/etc/pacman.conf <<'EOF'
+[options]
+HoldPkg = pacman glibc
+Architecture = auto
+CheckSpace
+ParallelDownloads = 5
+SigLevel = Required DatabaseOptional
+LocalFileSigLevel = Optional
+
+[core]
+Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /etc/pacman.d/mirrorlist
+
+[multilib]
+Include = /etc/pacman.d/mirrorlist
+EOF
+}
+
 apply_install_choices() {
   local target_user="$1"
   local helper="/usr/lib/keskos-installer/apply-install-choices.sh"
@@ -117,6 +153,7 @@ main() {
   local target_user=""
 
   write_installed_os_release
+  write_installed_pacman_conf
   cleanup_live_bits
   target_user="$(detect_target_user || true)"
   log "Applying Calamares software loadout choices."

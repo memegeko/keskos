@@ -35,6 +35,7 @@ mkinitcpio-archiso
 networkmanager
 ntfs-3g
 packagekit-qt6
+pacman-mirrorlist
 partitionmanager
 playerctl
 pipewire
@@ -46,6 +47,7 @@ plasma-workspace
 polkit-kde-agent
 procps-ng
 python
+python-rich
 pyside6
 qemu-guest-agent
 qt6-5compat
@@ -54,6 +56,7 @@ qt6-declarative
 qt6-svg
 qt6-wayland
 quickshell
+pacman-contrib
 rsync
 sddm
 sddm-kcm

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Kesk Upgrade
+Comment=Update KeskOS packages from official repos, AUR, Flatpak and firmware
+Exec=konsole --hold --workdir ~ -e /usr/bin/kesk upgrade
+Icon=system-software-update
+Terminal=false
+StartupNotify=false
+Categories=System;Utility;

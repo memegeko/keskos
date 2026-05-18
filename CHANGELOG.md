@@ -1,5 +1,38 @@
 # Changelog
 
+## Beta Branch Note
+
+Active in-progress KeskOS beta work now lands on `beta-development` first.
+Use that branch for the current updater, installer, and desktop integration pass.
+
+## 2026-05-18
+
+### Beta branch updater, pacman repair, and panel cleanup fixes
+
+This change set is intended for the `beta-development` branch.
+
+### Added
+
+- the first official `kesk` command router with `help`, `version`, and `upgrade`
+- `kesk upgrade` terminal updater flow for pacman, AUR, Flatpak, and firmware checks
+- `docs/kesk-upgrade.md` for updater usage, logging, and troubleshooting
+- `kesk-upgrade.desktop` launcher entry for KDE
+
+### Changed
+
+- added `python-rich`, `pacman-contrib`, and `pacman-mirrorlist` to the ISO package set
+- hardened live-image permissions and logging fallback for the new `kesk` tools
+- rewrote installed-system pacman setup during post-install so the target system gets a usable mirror-backed repo configuration
+- renamed the default installer desktop profile wording to `KeskOS Split Shell Profile`
+- updated README and docs to mark this line as beta-branch work
+
+### Fixed
+
+- fixed `kesk upgrade` failures caused by missing executable bits in the live image
+- fixed updater log initialization when the live user state directory is not writable
+- fixed updater behavior on systems where pacman repositories are not configured yet
+- fixed duplicate/default Plasma panel persistence during the branded panel apply flow
+
 ## 2026-05-15
 
 ### Launcher cleanup, branded panel defaults, and Plasma polish
