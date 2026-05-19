@@ -99,48 +99,6 @@ The installed system carries over the visual identity:
 - prefilled username on the first login screen after install
 - custom login / lock / splash stack
 
-## Screenshots
-
-### Desktop and Apps
-
-<p align="center">
-  <img src="docs/screenshots/kesklaucherstartpage.png" alt="Kesk launcher start page" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskssearch.png" alt="Kesk launcher search results" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskmath.png" alt="Kesk calculator result" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskgoogle.png" alt="Kesk web search shortcut" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskbrowserstartpage.png" alt="Kesk browser start page" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskos_terminal.png" alt="KeskOS terminal and fastfetch" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/lockscreen.png" alt="KeskOS lock screen" width="780">
-</p>
-
-### Installer Flow
-
-<p align="center">
-  <img src="docs/screenshots/keskos_installer.png" alt="KeskOS installer overview" width="780">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/keskos_installing.png" alt="KeskOS installer deployment screen" width="780">
-</p>
-
 ## Installing KeskOS
 
 1. Download the latest release from [download.keskos.org](https://download.keskos.org).
