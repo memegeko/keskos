@@ -47,6 +47,7 @@ class UpdatesPage(BasePage):
         self.add_section(actions)
 
     def load_state(self) -> None:
+        self.begin_refresh()
         state = self.backend.updates_state()
         self.notifications.setChecked(bool(state["notifications"]))
         self.auto_check.setChecked(bool(state["auto_check"]))
@@ -54,6 +55,7 @@ class UpdatesPage(BasePage):
         self.include_aur.setChecked(bool(state["include_aur"]))
         self.include_flatpak.setChecked(bool(state["include_flatpak"]))
         self.include_firmware.setChecked(bool(state["include_firmware"]))
+        self.finish_refresh()
 
     def apply_changes(self) -> None:
         values = {

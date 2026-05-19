@@ -35,9 +35,11 @@ class AboutPage(BasePage):
         self.add_section(links)
 
     def load_state(self) -> None:
+        self.begin_refresh()
         rows = self.backend.about_rows()
         for value_label, (_label, value) in zip(self._rows, rows):
             value_label.setText(value)
+        self.finish_refresh()
 
     def on_activated(self) -> None:
         self.load_state()

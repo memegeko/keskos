@@ -18,6 +18,7 @@ file_permissions=(
   ["/root/customize_airootfs.sh"]="0:0:755"
   ["/usr/bin/kesk"]="0:0:755"
   ["/usr/bin/kesk-settings"]="0:0:755"
+  ["/usr/lib/kesk/kesk-settings-helper"]="0:0:755"
   ["/usr/lib/kesk/commands/doctor"]="0:0:755"
   ["/usr/lib/kesk/commands/repair"]="0:0:755"
   ["/usr/lib/kesk/commands/settings"]="0:0:755"

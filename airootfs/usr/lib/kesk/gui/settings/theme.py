@@ -1,20 +1,26 @@
 from __future__ import annotations
 
-APP_TITLE = "KESK SETTINGS"
-APP_SUBTITLE = "PLASMA SETTINGS // KESKOS PREFERENCES // USER-SAFE CONFIGURATION"
+APP_TITLE = "Kesk Settings — System Settings"
+APP_SUBTITLE = "SYSTEM TOOLS // DESKTOP STACK // MAINTENANCE CONSOLE"
 
 BACKGROUND = "#050505"
+MAIN_PANEL = "#070707"
+SIDEBAR = "#030303"
 PANEL = "#11100e"
 PANEL_ALT = "#0b0a09"
 ACCENT = "#ce6a35"
-ACCENT_SOFT = "#7b492b"
-TEXT = "#ddd6cd"
-MUTED = "#9d968f"
+ACCENT_SOFT = "rgba(206,106,53,0.35)"
+ACCENT_LINE = "rgba(206,106,53,0.25)"
+TEXT = "#b8afa6"
+MUTED = "#8f8a84"
+DISABLED = "#4c4845"
 SUCCESS = "#88aa66"
 WARNING = "#d69a4a"
-DANGER = "#d86a54"
-FIELD = "#14110e"
-HOVER = "#1a1511"
+DANGER = "#d65a4a"
+FIELD = "#10100f"
+FIELD_ALT = "#080808"
+HOVER = "rgba(206,106,53,0.14)"
+ACTIVE_TEXT = "#050505"
 
 
 def stylesheet() -> str:
@@ -22,51 +28,122 @@ def stylesheet() -> str:
 QWidget {{
     background-color: {BACKGROUND};
     color: {TEXT};
-    font-family: "Noto Sans", "DejaVu Sans", sans-serif;
+    font-family: "JetBrains Mono", "Iosevka", "Noto Sans Mono", monospace;
     font-size: 13px;
 }}
 QMainWindow {{
     background-color: {BACKGROUND};
 }}
-QFrame#Sidebar {{
-    background-color: {PANEL_ALT};
-    border-right: 1px solid {ACCENT};
+QWidget#WindowShell {{
+    background-color: {MAIN_PANEL};
+    border: 1px solid {ACCENT};
 }}
-QFrame#TopHeader {{
-    background-color: {PANEL_ALT};
+QFrame#TitleBar {{
+    background-color: {SIDEBAR};
     border-bottom: 1px solid {ACCENT};
 }}
-QFrame#Card {{
-    background-color: {PANEL};
-    border: 1px solid {ACCENT_SOFT};
-}}
-QFrame#SearchPanel {{
-    background-color: {PANEL};
-    border: 1px solid {ACCENT_SOFT};
-}}
-QLabel#Title {{
+QLabel#TitleGlyph {{
     color: {ACCENT};
+    font-size: 18px;
+    font-weight: 700;
+}}
+QLabel#TitleText {{
+    color: {TEXT};
+    font-size: 14px;
+    font-weight: 700;
+}}
+QLabel#TitleSubtext {{
+    color: {MUTED};
+    font-size: 11px;
+}}
+QFrame#SidebarHost {{
+    background-color: {SIDEBAR};
+    border-right: 1px solid {ACCENT_LINE};
+}}
+QFrame#SidebarSearchRow {{
+    background-color: transparent;
+}}
+QFrame#SidebarSearchRow QLineEdit {{
+    min-height: 30px;
+}}
+QToolButton#SidebarToggle {{
+    background-color: {FIELD_ALT};
+    border: 1px solid {ACCENT_SOFT};
+    color: {TEXT};
+    min-width: 32px;
+    min-height: 32px;
+}}
+QToolButton#SidebarToggle:hover {{
+    background-color: {HOVER};
+    border-color: {ACCENT};
+}}
+QLineEdit#SearchInput {{
+    background-color: {FIELD_ALT};
+    border: 1px solid {ACCENT_SOFT};
+    color: {TEXT};
+    padding: 7px 10px;
+}}
+QLineEdit#SearchInput:focus {{
+    border-color: {ACCENT};
+}}
+QLabel#SidebarGroup {{
+    color: {MUTED};
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}}
+QFrame#SidebarDivider {{
+    background-color: {ACCENT_LINE};
+    max-height: 1px;
+    min-height: 1px;
+}}
+QToolButton#SidebarItem {{
+    background-color: transparent;
+    border: 1px solid transparent;
+    color: {TEXT};
+    text-align: left;
+    padding: 6px 10px;
+    min-height: 32px;
+}}
+QToolButton#SidebarItem:hover {{
+    background-color: {HOVER};
+    border-color: {ACCENT_LINE};
+}}
+QToolButton#SidebarItem:checked {{
+    background-color: {ACCENT};
+    border-color: {ACCENT};
+    color: {ACTIVE_TEXT};
+}}
+QFrame#ContentHost {{
+    background-color: {MAIN_PANEL};
+}}
+QFrame#ContentHeader {{
+    background-color: {MAIN_PANEL};
+    border-bottom: 1px solid {ACCENT_LINE};
+}}
+QLabel#ContentTitle {{
+    color: {TEXT};
     font-size: 24px;
     font-weight: 700;
-    font-family: "JetBrains Mono Nerd Font", "JetBrains Mono", monospace;
-    letter-spacing: 1px;
 }}
-QLabel#Subtitle {{
+QLabel#ContentSubtitle {{
     color: {MUTED};
     font-size: 12px;
-    font-weight: 600;
 }}
-QLabel#SectionHeading {{
-    color: {ACCENT};
-    font-size: 22px;
-    font-weight: 700;
-    font-family: "JetBrains Mono Nerd Font", "JetBrains Mono", monospace;
+QFrame#ContentDivider {{
+    background-color: {ACCENT_LINE};
+    max-height: 1px;
+    min-height: 1px;
+}}
+QFrame#Card {{
+    background-color: {PANEL_ALT};
+    border: 1px solid {ACCENT_SOFT};
 }}
 QLabel#CardTitle {{
     color: {ACCENT};
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
-    font-family: "JetBrains Mono Nerd Font", "JetBrains Mono", monospace;
 }}
 QLabel#Muted {{
     color: {MUTED};
@@ -80,23 +157,19 @@ QLabel#RowBody {{
     color: {MUTED};
     font-size: 12px;
 }}
-QPushButton {{
+QPushButton, QToolButton, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {FIELD};
     color: {TEXT};
     border: 1px solid {ACCENT_SOFT};
-    padding: 8px 12px;
-    min-height: 18px;
+    padding: 7px 10px;
 }}
-QPushButton:hover {{
+QPushButton:hover, QToolButton:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {{
     background-color: {HOVER};
     border-color: {ACCENT};
 }}
-QPushButton:pressed {{
-    background-color: #241c17;
-}}
-QPushButton:disabled {{
-    color: {MUTED};
-    border-color: #5d4837;
+QPushButton:disabled, QToolButton:disabled {{
+    color: {DISABLED};
+    border-color: rgba(76,72,69,0.6);
 }}
 QPushButton#Primary {{
     border-color: {ACCENT};
@@ -104,54 +177,66 @@ QPushButton#Primary {{
 QPushButton#Danger {{
     border-color: {DANGER};
 }}
-QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
+QPushButton#ThemeCard {{
+    background-color: {FIELD_ALT};
+    border: 1px solid {ACCENT_SOFT};
+    text-align: left;
+    padding: 10px;
+    min-width: 136px;
+    min-height: 96px;
+    color: {TEXT};
+}}
+QPushButton#ThemeCard:hover {{
+    background-color: {HOVER};
+    border-color: {ACCENT};
+}}
+QPushButton#ThemeCard:checked {{
+    background-color: rgba(206,106,53,0.22);
+    border: 1px solid {ACCENT};
+    color: {TEXT};
+}}
+QLineEdit, QTextEdit, QPlainTextEdit {{
     background-color: {FIELD};
     border: 1px solid {ACCENT_SOFT};
     color: {TEXT};
-    padding: 6px;
+    padding: 7px 9px;
     selection-background-color: {ACCENT};
 }}
-QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {{
     border-color: {ACCENT};
 }}
-QListWidget {{
-    background-color: transparent;
-    border: none;
-    outline: none;
-}}
-QListWidget::item {{
-    padding: 10px 12px;
-    margin: 2px 0;
-    border: 1px solid transparent;
-}}
-QListWidget::item:selected {{
-    background-color: #18120f;
-    border: 1px solid {ACCENT};
-    color: {ACCENT};
-}}
-QListWidget::item:hover {{
-    background-color: {HOVER};
+QComboBox QAbstractItemView {{
+    background-color: {PANEL_ALT};
+    border: 1px solid {ACCENT_SOFT};
+    selection-background-color: {ACCENT};
+    selection-color: {ACTIVE_TEXT};
 }}
 QScrollArea {{
     border: none;
 }}
-QCheckBox {{
+QCheckBox, QRadioButton {{
     spacing: 8px;
 }}
-QCheckBox::indicator {{
+QCheckBox::indicator, QRadioButton::indicator {{
     width: 16px;
     height: 16px;
     border: 1px solid {ACCENT_SOFT};
     background: {FIELD};
 }}
-QCheckBox::indicator:checked {{
+QRadioButton::indicator {{
+    border-radius: 8px;
+}}
+QCheckBox::indicator:checked, QRadioButton::indicator:checked {{
     background: {ACCENT};
     border-color: {ACCENT};
 }}
 QSlider::groove:horizontal {{
     height: 6px;
-    background: #1a1816;
+    background: #1a1713;
     border: 1px solid {ACCENT_SOFT};
+}}
+QSlider::sub-page:horizontal {{
+    background: {ACCENT};
 }}
 QSlider::handle:horizontal {{
     width: 16px;
@@ -159,13 +244,17 @@ QSlider::handle:horizontal {{
     background: {ACCENT};
     border: 1px solid {ACCENT};
 }}
+QFrame#BottomBar {{
+    background-color: {SIDEBAR};
+    border-top: 1px solid {ACCENT_LINE};
+}}
 QStatusBar {{
-    background-color: {PANEL_ALT};
+    background-color: {SIDEBAR};
     color: {MUTED};
-    border-top: 1px solid {ACCENT_SOFT};
+    border-top: 1px solid {ACCENT_LINE};
 }}
 QScrollBar:vertical {{
-    background: {PANEL_ALT};
+    background: {SIDEBAR};
     width: 12px;
 }}
 QScrollBar::handle:vertical {{

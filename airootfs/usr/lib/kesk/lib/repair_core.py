@@ -673,6 +673,13 @@ def preferred_asset_path(status: ThemeStatus, key: str) -> Path | None:
     return assets[0].path if assets else None
 
 
+def is_kesk_look_and_feel(name: str | None) -> bool:
+    if not name:
+        return False
+    lowered = name.strip().lower()
+    return lowered in {candidate.lower() for candidate in LOOK_AND_FEEL_NAMES} or "kesk" in lowered
+
+
 def log_theme_status(ctx: RepairContext, status: ThemeStatus) -> None:
     ctx.logger.log("theme_status_begin")
     for key, value in status.active.items():
@@ -1013,8 +1020,11 @@ def reapply_kde_theme(ctx: RepairContext, record: ActionRecord) -> int:
             updates_ok &= kwriteconfig(ctx, record, ctx.home / ".config" / "ksplashrc", ["KSplash"], "Theme", look_and_feel)
 
     if graphical_session_available():
-        if ctx.lookandfeeltool_bin and look_and_feel:
+        if ctx.lookandfeeltool_bin and look_and_feel and not is_kesk_look_and_feel(look_and_feel):
             capture_command(ctx, record, [ctx.lookandfeeltool_bin, "-a", look_and_feel], allow_failure=True)
+        elif look_and_feel and is_kesk_look_and_feel(look_and_feel):
+            record.notes.append("Skipped lookandfeeltool for the KeskOS look-and-feel package to preserve the managed panel and wallpaper.")
+            ctx.console.status("ok", "Preserved managed panel and wallpaper while reapplying the KeskOS look-and-feel package")
         if ctx.plasma_apply_colorscheme_bin and color_scheme:
             capture_command(ctx, record, [ctx.plasma_apply_colorscheme_bin, color_scheme], allow_failure=True)
         if ctx.qdbus_bin:

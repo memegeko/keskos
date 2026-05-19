@@ -12,6 +12,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 from typing import Any, Iterable, Sequence
 
 try:
@@ -20,6 +21,20 @@ except ImportError:  # pragma: no cover - non-POSIX fallback for smoke tests
     pwd = None
 
 from common import APP_VERSION, SessionLogger, shell_join
+from .backends import accounts as accounts_backend
+from .backends import accessibility as accessibility_backend
+from .backends import audio as audio_backend
+from .backends import bluetooth as bluetooth_backend
+from .backends import boot_login as boot_login_backend
+from .backends import display as display_backend
+from .backends import file_associations as file_associations_backend
+from .backends import notifications as notifications_backend
+from .backends import privacy as privacy_backend
+from .backends import privileged as privileged_backend
+from .backends import proxy as proxy_backend
+from .backends import search as search_backend
+from .backends import task_switcher as task_switcher_backend
+from .backends import vpn as vpn_backend
 
 
 DOC_LINKS: tuple[tuple[str, str], ...] = (
@@ -44,10 +59,16 @@ TERMINAL_PROMPT_STYLES = ("keskos", "minimal")
 
 DEFAULT_KESK_SETTINGS: dict[str, Any] = {
     "accent_color": ACCENT_ORANGE,
+    "kesk_theme_mode": "full",
     "crt_effects": True,
     "scanlines": True,
     "glow_intensity": 70,
+    "terminal_font": "JetBrains Mono",
     "wallpaper_path": "",
+    "wallpaper_fit": "Fill",
+    "random_wallpaper": False,
+    "wallpaper_folder": "",
+    "apply_wallpaper_to_lock": False,
     "desktop_icons": True,
     "desktop_toolbox": True,
     "desktop_containment": "folder_view",
@@ -63,13 +84,41 @@ DEFAULT_KESK_SETTINGS: dict[str, Any] = {
     "panel_glow_intensity": 60,
     "bottom_panel_autohide": False,
     "workspace_switcher": True,
+    "hud_widgets_enabled": True,
+    "hud_cpu_widget": True,
+    "hud_memory_widget": True,
+    "hud_network_widget": True,
+    "hud_media_widget": True,
+    "hud_clock_widget": True,
+    "hud_widget_position": "top-right",
+    "quickshell_experimental_mode": False,
+    "new_launcher_backend": False,
+    "new_settings_backend": False,
+    "debug_ui_overlays": False,
     "input_tap_to_click": True,
     "input_natural_scroll": False,
+    "input_two_finger_scroll": True,
+    "input_disable_touchpad_while_typing": True,
+    "input_acceleration_profile": "adaptive",
+    "input_right_click_method": "two_finger",
+    "input_repeat_enabled": True,
+    "input_numlock_startup": "unchanged",
+    "input_compose_key": "Disabled",
     "mouse_speed": 50,
     "display_night_color": False,
+    "display_scale_percent": 100,
+    "display_refresh_rate": 60,
+    "display_orientation": "Normal",
+    "display_brightness": 100,
+    "display_resolution": "Automatic",
+    "sound_audio_profile": "Stereo",
+    "network_metered": False,
     "power_blank_timeout": 10,
     "power_sleep_timeout": 30,
     "power_show_battery_percent": True,
+    "power_lid_action": "sleep",
+    "power_dim_screen": True,
+    "power_low_battery_action": "suspend",
     "user_display_name": "",
     "update_notifications": True,
     "update_auto_check": True,
@@ -80,13 +129,25 @@ DEFAULT_KESK_SETTINGS: dict[str, Any] = {
     "boot_splash_min_duration": 2,
     "boot_show_logs": False,
     "boot_quiet_boot": True,
+    "boot_terminal_text": False,
+    "show_user_list": True,
     "login_background": "",
     "default_browser_preference": "librewolf.desktop",
+    "default_video_player_preference": "",
+    "default_music_player_preference": "",
+    "default_mail_preference": "",
     "browser_homepage_enabled": True,
+    "browser_theme_enabled": False,
     "telemetry_enabled": False,
     "local_analytics_dashboard": False,
     "experimental_features": False,
     "prompt_style": "keskos",
+    "bluetooth_receive_files": False,
+    "accounts_sync_calendar": True,
+    "accounts_sync_files": True,
+    "accounts_sync_contacts": True,
+    "privacy_recent_files_history": True,
+    "privacy_file_search": False,
 }
 
 FOCUS_POLICIES = (
@@ -130,6 +191,22 @@ IMAGE_VIEWER_OPTIONS: tuple[tuple[str, str], ...] = (
     ("gwenview.desktop", "Gwenview"),
     ("org.kde.okular.desktop", "Okular"),
     ("eog.desktop", "Image Viewer"),
+)
+VIDEO_PLAYER_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("org.kde.haruna.desktop", "Haruna"),
+    ("vlc.desktop", "VLC"),
+    ("mpv.desktop", "MPV"),
+)
+MUSIC_PLAYER_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("elisa.desktop", "Elisa"),
+    ("org.kde.elisa.desktop", "Elisa"),
+    ("spotify.desktop", "Spotify"),
+    ("rhythmbox.desktop", "Rhythmbox"),
+)
+MAIL_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("thunderbird.desktop", "Thunderbird"),
+    ("org.kde.kmail2.desktop", "KMail"),
+    ("evolution.desktop", "Evolution"),
 )
 
 
@@ -181,6 +258,32 @@ def python_command(path: Path, *extra_args: str) -> list[str]:
     return [sys.executable, str(path), *extra_args]
 
 
+def runtime_candidate_paths(*parts: str) -> list[Path]:
+    candidates: list[Path] = []
+    uid = os.getuid() if hasattr(os, "getuid") else os.getpid()
+
+    if os.environ.get("XDG_RUNTIME_DIR"):
+        candidates.append(Path(os.environ["XDG_RUNTIME_DIR"]).expanduser() / "kesk" / Path(*parts))
+    candidates.append(Path(tempfile.gettempdir()) / f"kesk-{uid}" / Path(*parts))
+    return candidates
+
+
+def ensure_writable_dir(candidates: Sequence[Path]) -> Path:
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            continue
+        return candidate
+    fallback = candidates[-1] if candidates else Path(tempfile.gettempdir()) / f"kesk-{os.getpid()}"
+    fallback.mkdir(parents=True, exist_ok=True)
+    return fallback
+
+
 def resolve_runtime_paths(root: Path) -> RuntimePaths:
     usr_root = root.parents[1]
     staged_root = root.parents[2]
@@ -194,15 +297,28 @@ def resolve_runtime_paths(root: Path) -> RuntimePaths:
     gui_path = next((path for path in gui_candidates if path.is_file()), gui_candidates[0])
     docs_local_path = next((path for path in docs_candidates if path.is_dir()), None)
 
-    logs_dir = home / ".local" / "state" / "kesk" / "logs"
-    backups_dir = home / ".local" / "state" / "kesk" / "settings-backups"
-    config_dir = home / ".config" / "kesk"
+    logs_candidates: list[Path] = []
+    if os.environ.get("KESK_LOG_DIR"):
+        logs_candidates.append(Path(os.environ["KESK_LOG_DIR"]).expanduser())
+    if os.environ.get("XDG_STATE_HOME"):
+        state_home = Path(os.environ["XDG_STATE_HOME"]).expanduser() / "kesk"
+        logs_candidates.append(state_home / "logs")
+        backup_candidates = [state_home / "settings-backups", *runtime_candidate_paths("settings-backups")]
+    else:
+        backup_candidates = [home / ".local" / "state" / "kesk" / "settings-backups", *runtime_candidate_paths("settings-backups")]
+
+    logs_candidates.extend([home / ".local" / "state" / "kesk" / "logs", *runtime_candidate_paths("logs")])
+
+    if os.environ.get("XDG_CONFIG_HOME"):
+        config_candidates = [Path(os.environ["XDG_CONFIG_HOME"]).expanduser() / "kesk", *runtime_candidate_paths("config")]
+    else:
+        config_candidates = [home / ".config" / "kesk", *runtime_candidate_paths("config")]
+
+    logs_dir = ensure_writable_dir(logs_candidates)
+    backups_dir = ensure_writable_dir(backup_candidates)
+    config_dir = ensure_writable_dir(config_candidates)
     settings_path = config_dir / "settings.json"
     ui_state_path = config_dir / "settings-gui.ini"
-
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    backups_dir.mkdir(parents=True, exist_ok=True)
-    config_dir.mkdir(parents=True, exist_ok=True)
 
     return RuntimePaths(
         root=root,
@@ -404,6 +520,66 @@ def detect_package_count() -> str:
     return str(sum(1 for line in result.stdout.splitlines() if line.strip()))
 
 
+def detect_frameworks_version() -> str:
+    if command_exists("kf6-config"):
+        return first_nonempty_line(["kf6-config", "--version"])
+    return "unavailable"
+
+
+def detect_cpu_model() -> str:
+    cpuinfo = Path("/proc/cpuinfo")
+    if cpuinfo.is_file():
+        try:
+            for line in cpuinfo.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.lower().startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+        except OSError:
+            pass
+    return "unavailable"
+
+
+def detect_gpu_model() -> str:
+    if command_exists("lspci"):
+        try:
+            result = subprocess.run(["lspci"], check=False, capture_output=True, text=True, errors="replace", timeout=10)
+        except (OSError, subprocess.TimeoutExpired):
+            result = None
+        if result is not None:
+            for line in result.stdout.splitlines():
+                lowered = line.lower()
+                if "vga compatible controller" in lowered or "3d controller" in lowered:
+                    return line.split(":", 2)[-1].strip()
+    return "unavailable"
+
+
+def detect_total_ram() -> str:
+    meminfo = Path("/proc/meminfo")
+    if meminfo.is_file():
+        try:
+            for line in meminfo.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("MemTotal:"):
+                    parts = line.split()
+                    kib = int(parts[1])
+                    gib = kib / 1024 / 1024
+                    return f"{gib:.1f} GiB"
+        except (OSError, ValueError, IndexError):
+            pass
+    return "unavailable"
+
+
+def detect_root_disk() -> str:
+    try:
+        usage = shutil.disk_usage(Path.home())
+    except OSError:
+        try:
+            usage = shutil.disk_usage("/")
+        except OSError:
+            return "unavailable"
+    total_gib = usage.total / 1024 / 1024 / 1024
+    used_percent = int((usage.used / usage.total) * 100) if usage.total else 0
+    return f"{total_gib:.1f} GiB total, {used_percent}% used"
+
+
 def staged_root(root: Path) -> Path | None:
     try:
         candidate = root.parents[2]
@@ -481,12 +657,31 @@ class SettingsBackend:
             "systemsettings",
             "wpctl",
             "pactl",
+            "dunst",
+            "dunstctl",
+            "notify-send",
             "nmcli",
             "powerprofilesctl",
             "hostnamectl",
             "pkexec",
+            "pgrep",
+            "pkill",
+            "quickshell",
+            "bluetoothctl",
+            "rfkill",
+            "systemctl",
+            "balooctl6",
+            "xdg-mime",
+            "xdg-settings",
+            "flatseal",
+            "brightnessctl",
+            "ddcutil",
+            "kwalletd6",
+            "plymouth-set-default-theme",
+            "mkinitcpio",
             "keskos-launcher-switch",
             "keskos-reset-panel",
+            "keskos-wallpaper-apply",
         )
         return {name: shutil.which(name) for name in binaries}
 
@@ -706,6 +901,26 @@ class SettingsBackend:
         return self.paths.home / ".config" / "mimeapps.list"
 
     @property
+    def baloofilerc(self) -> Path:
+        return self.settings_file("baloofilerc")
+
+    @property
+    def kioslaverc(self) -> Path:
+        return self.settings_file("kioslaverc")
+
+    @property
+    def kaccessrc(self) -> Path:
+        return self.settings_file("kaccessrc")
+
+    @property
+    def kcmaccessrc(self) -> Path:
+        return self.settings_file("kcmaccessrc")
+
+    @property
+    def kactivitymanagerdrc(self) -> Path:
+        return self.settings_file("kactivitymanagerdrc")
+
+    @property
     def launcher_mode_path(self) -> Path:
         return self.paths.home / ".config" / "keskos" / "launcher-mode"
 
@@ -713,13 +928,60 @@ class SettingsBackend:
     def prompt_overlay_path(self) -> Path:
         return self.paths.home / ".config" / "keskos" / "bashrc"
 
-    def default_wallpaper(self) -> str:
-        if self.custom_value("wallpaper_path"):
-            return str(self.custom_value("wallpaper_path"))
-        for candidate in DEFAULT_WALLPAPER_CANDIDATES:
+    def official_wallpaper_candidates(self) -> list[Path]:
+        candidates: list[Path] = list(DEFAULT_WALLPAPER_CANDIDATES)
+        asset_root = self.paths.staged_root / "assets"
+        candidates.extend(
+            [
+                asset_root / "wallpaper.jpg",
+                asset_root / "wallpaper-4096x2160.png",
+                asset_root / "wallpaper-2560x1440.png",
+                asset_root / "wallpaper-1920x1080.png",
+                asset_root / "wallpaper.png",
+                asset_root / "wallpaper.svg",
+            ]
+        )
+
+        deduped: list[Path] = []
+        seen: set[Path] = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            deduped.append(candidate)
+        return deduped
+
+    def official_wallpaper(self) -> str:
+        for candidate in self.official_wallpaper_candidates():
             if candidate.is_file():
                 return str(candidate)
         return ""
+
+    def is_kesk_look_and_feel(self, value: str) -> bool:
+        lowered = value.strip().lower()
+        return lowered == DEFAULT_LOOK_AND_FEEL.lower() or "kesk" in lowered
+
+    def is_official_wallpaper(self, value: str) -> bool:
+        path = Path(value).expanduser()
+        if not value:
+            return False
+        try:
+            resolved = path.resolve()
+        except OSError:
+            return False
+        for candidate in self.official_wallpaper_candidates():
+            try:
+                if candidate.resolve() == resolved:
+                    return True
+            except OSError:
+                continue
+        return False
+
+    def default_wallpaper(self) -> str:
+        custom_path = str(self.custom_value("wallpaper_path", "")).strip()
+        if custom_path and Path(custom_path).expanduser().is_file():
+            return custom_path
+        return self.official_wallpaper()
 
     def metadata_label(self, path: Path) -> str:
         json_candidates = (path / "metadata.json", path / "contents" / "metadata.json")
@@ -739,7 +1001,10 @@ class SettingsBackend:
             if candidate.is_file():
                 parser = configparser.ConfigParser(interpolation=None)
                 parser.optionxform = str
-                parser.read(candidate, encoding="utf-8")
+                try:
+                    parser.read(candidate, encoding="utf-8")
+                except (OSError, configparser.Error):
+                    continue
                 for section in ("Desktop Entry", "KDE", "Icon Theme"):
                     if parser.has_option(section, "Name"):
                         return parser.get(section, "Name")
@@ -813,6 +1078,15 @@ class SettingsBackend:
 
     def bool_text(self, value: bool) -> str:
         return "true" if value else "false"
+
+    def find_option_value(self, options: Sequence[SelectOption], *patterns: str, fallback: str = "") -> str:
+        for pattern in patterns:
+            lowered = pattern.lower()
+            for option in options:
+                haystack = f"{option.value} {option.label}".lower()
+                if lowered == option.value.lower() or lowered in haystack:
+                    return option.value
+        return fallback
 
     def as_bool(self, value: Any, default: bool = False) -> bool:
         if isinstance(value, bool):
@@ -908,6 +1182,166 @@ class SettingsBackend:
             self._run([self.tools["kbuildsycoca6"]], capture=True, timeout=20)
         self.reconfigure_kwin()
 
+    def _wrap_backend_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        backup_path: Path | None = None,
+        refresh_runtime: bool = False,
+    ) -> ApplyResult:
+        if refresh_runtime:
+            self.refresh_runtime()
+        return ApplyResult(
+            bool(payload.get("success", False)),
+            str(payload.get("summary", "")),
+            details=list(payload.get("details", [])),
+            warnings=list(payload.get("warnings", [])),
+            requires=list(payload.get("requires", [])),
+            backup_path=backup_path,
+        )
+
+    def accessibility_state(self) -> dict[str, Any]:
+        return accessibility_backend.read_current(self)
+
+    def apply_accessibility(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("accessibility", (self.kdeglobals, self.kcminputrc, self.kaccessrc, self.kcmaccessrc))
+        payload = accessibility_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(
+            payload,
+            backup_path=backup,
+            refresh_runtime=True,
+        )
+
+    def bluetooth_state(self) -> dict[str, Any]:
+        return bluetooth_backend.read_current(self)
+
+    def apply_bluetooth(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("bluetooth", (self.paths.settings_path,))
+        payload = bluetooth_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def bluetooth_connect_device(self, address: str) -> ApplyResult:
+        payload = bluetooth_backend.connect_device(self, address)
+        return self._wrap_backend_payload(payload)
+
+    def bluetooth_disconnect_device(self, address: str) -> ApplyResult:
+        payload = bluetooth_backend.disconnect_device(self, address)
+        return self._wrap_backend_payload(payload)
+
+    def bluetooth_pair_device(self, address: str) -> ApplyResult:
+        payload = bluetooth_backend.pair_device(self, address)
+        return self._wrap_backend_payload(payload)
+
+    def bluetooth_trust_device(self, address: str) -> ApplyResult:
+        payload = bluetooth_backend.trust_device(self, address)
+        return self._wrap_backend_payload(payload)
+
+    def bluetooth_remove_device(self, address: str) -> ApplyResult:
+        payload = bluetooth_backend.remove_device(self, address)
+        return self._wrap_backend_payload(payload)
+
+    def online_accounts_state(self) -> dict[str, Any]:
+        return accounts_backend.read_current(self)
+
+    def apply_online_accounts(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("online-accounts", (self.paths.settings_path,))
+        payload = accounts_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def vpn_state(self) -> dict[str, Any]:
+        return vpn_backend.read_current(self)
+
+    def apply_vpn(self, values: dict[str, Any]) -> ApplyResult:
+        payload = vpn_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload)
+
+    def import_vpn(self, file_path: str) -> ApplyResult:
+        payload = vpn_backend.import_config(self, file_path)
+        return self._wrap_backend_payload(payload)
+
+    def proxy_state(self) -> dict[str, Any]:
+        return proxy_backend.read_current(self)
+
+    def apply_proxy(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("proxy", (self.kioslaverc,))
+        payload = proxy_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def file_associations_state(self) -> dict[str, Any]:
+        return file_associations_backend.read_current(self)
+
+    def search_mime_types(self, query: str) -> list[str]:
+        return file_associations_backend.search_mime_types(self, query)
+
+    def current_file_association(self, mime_type: str) -> str:
+        return file_associations_backend.current_default(self, mime_type)
+
+    def apply_file_association(self, mime_type: str, desktop_id: str) -> ApplyResult:
+        backup = self.backup_files("file-associations", (self.mimeapps,))
+        payload = file_associations_backend.apply_changes(self, {"mime_type": mime_type, "desktop_id": desktop_id})
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def reset_file_association(self, mime_type: str) -> ApplyResult:
+        backup = self.backup_files("file-associations", (self.mimeapps,))
+        payload = file_associations_backend.reset_to_system_default(self, mime_type)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def task_switcher_state(self) -> dict[str, Any]:
+        return task_switcher_backend.read_current(self)
+
+    def apply_task_switcher(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("task-switcher", (self.kwinrc,))
+        payload = task_switcher_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def notifications_state(self, *, ensure_config: bool = True) -> dict[str, Any]:
+        return notifications_backend.read_current(self, ensure_config=ensure_config)
+
+    def apply_notifications(self, values: dict[str, Any]) -> ApplyResult:
+        backup = notifications_backend.backup_config(self)
+        payload = notifications_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def apply_notifications_preset(self) -> ApplyResult:
+        backup = notifications_backend.backup_config(self)
+        payload = notifications_backend.apply_kesk_preset(self)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def reload_notifications(self) -> ApplyResult:
+        payload = notifications_backend.reload_dunst(self)
+        return self._wrap_backend_payload(payload)
+
+    def test_notification(self, *, critical: bool = False) -> ApplyResult:
+        payload = notifications_backend.send_test_notification(self, critical=critical)
+        return self._wrap_backend_payload(payload)
+
+    def open_notifications_config(self) -> ApplyResult:
+        payload = notifications_backend.open_config(self)
+        return self._wrap_backend_payload(payload)
+
+    def search_backend_state(self) -> dict[str, Any]:
+        return search_backend.read_current(self)
+
+    def apply_search_backend(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("search", (self.baloofilerc,))
+        payload = search_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def privacy_state(self) -> dict[str, Any]:
+        return privacy_backend.read_current(self)
+
+    def apply_privacy(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("privacy", (self.kactivitymanagerdrc, self.baloofilerc, self.paths.settings_path))
+        payload = privacy_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
+
+    def clear_recent_history(self) -> ApplyResult:
+        payload = privacy_backend.clear_recent_history(self)
+        return self._wrap_backend_payload(payload)
+
+    def privileged_state(self) -> dict[str, Any]:
+        return privileged_backend.read_current(self)
+
     def apply_appearance(self, values: dict[str, Any]) -> ApplyResult:
         files = (self.kdeglobals, self.kcminputrc, self.kwinrc, self.plasmarc, self.paths.settings_path)
         backup = self.backup_files("appearance", files)
@@ -923,13 +1357,18 @@ class SettingsBackend:
         accent_color = str(values["accent_color"])
         wallpaper = str(values["wallpaper_path"]).strip()
         decoration = str(values["window_decoration"])
+        is_kesk_theme = self.is_kesk_look_and_feel(look_and_feel)
+        wallpaper_target = wallpaper or (self.official_wallpaper() if is_kesk_theme else "")
 
-        if self.tools.get("lookandfeeltool"):
+        if self.tools.get("lookandfeeltool") and not is_kesk_theme:
             self._run([self.tools["lookandfeeltool"], "-a", look_and_feel], capture=True, timeout=45)
             details.append(f"Applied look and feel package: {look_and_feel}")
         else:
             self.kwrite(self.kdeglobals, ("KDE",), "LookAndFeelPackage", look_and_feel)
-            details.append(f"Recorded look and feel package: {look_and_feel}")
+            if is_kesk_theme:
+                details.append(f"Recorded KeskOS look and feel package without forcing a Plasma layout reset: {look_and_feel}")
+            else:
+                details.append(f"Recorded look and feel package: {look_and_feel}")
 
         if self.tools.get("plasma-apply-colorscheme"):
             self._run([self.tools["plasma-apply-colorscheme"], color_scheme], capture=True, timeout=30)
@@ -957,12 +1396,34 @@ class SettingsBackend:
         self.kwrite(self.kwinrc, ("org.kde.kdecoration2",), "theme", decoration)
         self.kwrite(self.kdeglobals, ("General",), "AccentColor", accent_color)
 
-        if wallpaper:
-            warning = self.apply_wallpaper(wallpaper)
+        if is_kesk_theme and str(self.custom_value("panel_mode", "kesk_panel")) == "kesk_panel":
+            reset_panel = self.tools.get("keskos-reset-panel")
+            if reset_panel:
+                result = self._run([reset_panel], capture=True, timeout=120)
+                if result is None or result.returncode != 0:
+                    warnings.append("KeskOS panel refresh did not complete cleanly after applying the branded theme.")
+                else:
+                    details.append("Reapplied the managed KeskOS taskbar after the branded theme update.")
+            else:
+                warnings.append("keskos-reset-panel was not available, so the taskbar could not be reasserted automatically.")
+
+        if wallpaper_target:
+            warning: str | None = None
+            wallpaper_helper = self.tools.get("keskos-wallpaper-apply")
+            if is_kesk_theme and wallpaper_helper and self.is_official_wallpaper(wallpaper_target):
+                result = self._run([wallpaper_helper], capture=True, timeout=60)
+                if result is None or result.returncode != 0:
+                    warning = "KeskOS wallpaper helper did not complete cleanly."
+                else:
+                    details.append("Reapplied the official KeskOS wallpaper through the Plasma wallpaper helper.")
+            else:
+                warning = self.apply_wallpaper(wallpaper_target)
+                if warning is None:
+                    details.append(f"Wallpaper updated: {wallpaper_target}")
             if warning:
                 warnings.append(warning)
-            else:
-                details.append(f"Wallpaper updated: {wallpaper}")
+        elif is_kesk_theme:
+            warnings.append("No official KeskOS wallpaper asset was found, so the background could not be restored automatically.")
 
         self.set_custom_values(
             {
@@ -970,7 +1431,7 @@ class SettingsBackend:
                 "crt_effects": bool(values["crt_effects"]),
                 "scanlines": bool(values["scanlines"]),
                 "glow_intensity": int(values["glow_intensity"]),
-                "wallpaper_path": wallpaper,
+                "wallpaper_path": wallpaper_target,
             }
         )
         details.extend(
@@ -1000,6 +1461,7 @@ class SettingsBackend:
                 "plasma_theme": DEFAULT_PLASMA_THEME,
                 "color_scheme": DEFAULT_COLOR_SCHEME,
                 "accent_color": ACCENT_ORANGE,
+                "wallpaper_path": self.official_wallpaper(),
                 "window_decoration": DEFAULT_WINDOW_DECORATION,
                 "crt_effects": True,
                 "scanlines": True,
@@ -1032,6 +1494,10 @@ class SettingsBackend:
             names.append(self.kread(self.kwinrc, ("Desktops",), f"Name_{index}", str(index)))
         return {
             "wallpaper_path": self.default_wallpaper(),
+            "wallpaper_fit": str(self.custom_value("wallpaper_fit", "Fill")),
+            "random_wallpaper": self.as_bool(self.custom_value("random_wallpaper"), False),
+            "wallpaper_folder": str(self.custom_value("wallpaper_folder", "")),
+            "apply_wallpaper_to_lock": self.as_bool(self.custom_value("apply_wallpaper_to_lock"), False),
             "desktop_icons": self.as_bool(self.custom_value("desktop_icons"), True),
             "desktop_toolbox": self.as_bool(self.custom_value("desktop_toolbox"), True),
             "desktop_containment": str(self.custom_value("desktop_containment", "folder_view")),
@@ -1061,6 +1527,10 @@ class SettingsBackend:
         self.set_custom_values(
             {
                 "wallpaper_path": wallpaper,
+                "wallpaper_fit": str(values["wallpaper_fit"]),
+                "random_wallpaper": bool(values["random_wallpaper"]),
+                "wallpaper_folder": str(values["wallpaper_folder"]).strip(),
+                "apply_wallpaper_to_lock": bool(values["apply_wallpaper_to_lock"]),
                 "desktop_icons": bool(values["desktop_icons"]),
                 "desktop_toolbox": bool(values["desktop_toolbox"]),
                 "desktop_containment": str(values["desktop_containment"]),
@@ -1106,6 +1576,14 @@ class SettingsBackend:
             "panel_glow_intensity": int(self.custom_value("panel_glow_intensity", 60)),
             "bottom_panel_autohide": self.as_bool(self.custom_value("bottom_panel_autohide"), False),
             "workspace_switcher": self.as_bool(self.custom_value("workspace_switcher"), True),
+            "hud_widgets_enabled": self.as_bool(self.custom_value("hud_widgets_enabled"), True),
+            "hud_cpu_widget": self.as_bool(self.custom_value("hud_cpu_widget"), True),
+            "hud_memory_widget": self.as_bool(self.custom_value("hud_memory_widget"), True),
+            "hud_network_widget": self.as_bool(self.custom_value("hud_network_widget"), True),
+            "hud_media_widget": self.as_bool(self.custom_value("hud_media_widget"), True),
+            "hud_clock_widget": self.as_bool(self.custom_value("hud_clock_widget"), True),
+            "hud_widget_position": str(self.custom_value("hud_widget_position", "top-right")),
+            "quickshell_available": bool(self.tools.get("quickshell")),
         }
 
     def set_launcher_keybind(self, keybind: str, enabled: bool) -> None:
@@ -1171,6 +1649,13 @@ class SettingsBackend:
                 "panel_glow_intensity": int(values["panel_glow_intensity"]),
                 "bottom_panel_autohide": bool(values["bottom_panel_autohide"]),
                 "workspace_switcher": bool(values["workspace_switcher"]),
+                "hud_widgets_enabled": bool(values["hud_widgets_enabled"]),
+                "hud_cpu_widget": bool(values["hud_cpu_widget"]),
+                "hud_memory_widget": bool(values["hud_memory_widget"]),
+                "hud_network_widget": bool(values["hud_network_widget"]),
+                "hud_media_widget": bool(values["hud_media_widget"]),
+                "hud_clock_widget": bool(values["hud_clock_widget"]),
+                "hud_widget_position": str(values["hud_widget_position"]),
             }
         )
         self.refresh_runtime()
@@ -1197,6 +1682,114 @@ class SettingsBackend:
             "snap_enabled": self.as_bool(self.kread(self.kwinrc, ("Windows",), "ElectricBorderTiling", "true"), True),
             "titlebar_layout": titlebar_layout,
         }
+
+    def quick_settings_state(self) -> dict[str, Any]:
+        appearance = self.appearance_state()
+        windows = self.window_state()
+        look_and_feel = str(appearance["look_and_feel"]).lower()
+        color_scheme = str(appearance["color_scheme"]).lower()
+
+        if self.is_kesk_look_and_feel(str(appearance["look_and_feel"])):
+            theme_preset = "keskos_dark"
+        elif "breezedark" in look_and_feel or "breeze dark" in look_and_feel or "dark" in color_scheme:
+            theme_preset = "breeze_dark"
+        elif "breeze" in look_and_feel or color_scheme.startswith("breeze"):
+            theme_preset = "breeze"
+        else:
+            theme_preset = "automatic"
+
+        return {
+            "theme_preset": theme_preset,
+            "animation_speed": float(windows["animation_speed"]),
+            "single_click": self.as_bool(self.kread(self.kdeglobals, ("KDE",), "SingleClick", "false"), False),
+            "accent_color": str(self.custom_value("accent_color", ACCENT_ORANGE)),
+        }
+
+    def _theme_values_for_preset(self, preset: str) -> tuple[dict[str, Any] | None, list[str]]:
+        warnings: list[str] = []
+        current = self.appearance_state()
+
+        if preset == "keskos_dark":
+            return None, warnings
+
+        look_and_feel_options = self.look_and_feel_options()
+        plasma_options = self.plasma_theme_options()
+        color_options = self.color_scheme_options()
+        icon_options = self.icon_theme_options()
+        cursor_options = self.cursor_theme_options()
+        decoration_options = self.window_decoration_options()
+
+        if preset == "breeze_dark":
+            look_value = self.find_option_value(look_and_feel_options, "org.kde.breezedark.desktop", "breezedark", "breeze dark", fallback=current["look_and_feel"])
+            color_value = self.find_option_value(color_options, "breezedark", "breeze dark", fallback=current["color_scheme"])
+        else:
+            look_value = self.find_option_value(look_and_feel_options, "org.kde.breeze.desktop", "breeze", fallback=current["look_and_feel"])
+            color_value = self.find_option_value(color_options, "breezelight", "breeze light", "breeze", fallback=current["color_scheme"])
+
+        if look_value == current["look_and_feel"]:
+            warnings.append(f"Look-and-feel preset for {preset.replace('_', ' ')} was not found exactly; keeping the current package.")
+        if color_value == current["color_scheme"]:
+            warnings.append(f"Color scheme preset for {preset.replace('_', ' ')} was not found exactly; keeping the current scheme.")
+
+        values = dict(current)
+        values.update(
+            {
+                "look_and_feel": look_value,
+                "plasma_theme": self.find_option_value(plasma_options, "default", "breeze", fallback=current["plasma_theme"]),
+                "color_scheme": color_value,
+                "icon_theme": self.find_option_value(icon_options, "breeze", fallback=current["icon_theme"]),
+                "cursor_theme": self.find_option_value(cursor_options, "breeze_cursors", "breeze", fallback=current["cursor_theme"]),
+                "window_decoration": self.find_option_value(decoration_options, "org.kde.breeze", "breeze", fallback=current["window_decoration"]),
+                "crt_effects": False,
+                "scanlines": False,
+                "glow_intensity": 0,
+            }
+        )
+        return values, warnings
+
+    def apply_quick_settings(self, values: dict[str, Any]) -> ApplyResult:
+        backup = self.backup_files("quick-settings", (self.kdeglobals, self.kwinrc, self.plasmarc, self.paths.settings_path))
+        details: list[str] = []
+        warnings: list[str] = []
+        requires: list[str] = []
+        theme_preset = str(values.get("theme_preset", "automatic"))
+
+        if theme_preset == "keskos_dark":
+            theme_result = self.apply_kesk_appearance_defaults()
+            details.extend(theme_result.details)
+            warnings.extend(theme_result.warnings)
+            requires.extend(theme_result.requires)
+        elif theme_preset in {"breeze", "breeze_dark"}:
+            appearance_values, preset_warnings = self._theme_values_for_preset(theme_preset)
+            warnings.extend(preset_warnings)
+            if appearance_values is not None:
+                theme_result = self.apply_appearance(appearance_values)
+                details.extend(theme_result.details)
+                warnings.extend(theme_result.warnings)
+                requires.extend(theme_result.requires)
+        else:
+            details.append("Automatic theme card selected. Current appearance was kept because scheduled theme switching is not wired yet.")
+
+        self.kwrite(self.kdeglobals, ("KDE",), "AnimationDurationFactor", f"{float(values.get('animation_speed', 1.0)):.2f}")
+        details.append(f"Animation speed set to {float(values.get('animation_speed', 1.0)):.2f}x")
+
+        single_click = bool(values.get("single_click", False))
+        self.kwrite(self.kdeglobals, ("KDE",), "SingleClick", self.bool_text(single_click))
+        details.append("File click behavior set to open items on single click." if single_click else "File click behavior set to select items on single click.")
+
+        self.refresh_runtime()
+        summary = "Quick settings applied."
+        if theme_preset == "automatic":
+            summary = "Quick settings updated. Automatic theme scheduling is still pending."
+
+        return ApplyResult(
+            True,
+            summary,
+            details=details,
+            warnings=warnings,
+            requires=list(dict.fromkeys(requires)),
+            backup_path=backup,
+        )
 
     def apply_windows(self, values: dict[str, Any]) -> ApplyResult:
         backup = self.backup_files("windows", (self.kwinrc, self.kdeglobals))
@@ -1227,6 +1820,13 @@ class SettingsBackend:
             "repeat_rate": self.parse_int(self.kread(self.kcminputrc, ("Keyboard",), "RepeatRate", "25"), 25),
             "tap_to_click": self.as_bool(self.custom_value("input_tap_to_click"), True),
             "natural_scroll": self.as_bool(self.custom_value("input_natural_scroll"), False),
+            "two_finger_scroll": self.as_bool(self.custom_value("input_two_finger_scroll"), True),
+            "disable_while_typing": self.as_bool(self.custom_value("input_disable_touchpad_while_typing"), True),
+            "acceleration_profile": str(self.custom_value("input_acceleration_profile", "adaptive")),
+            "right_click_method": str(self.custom_value("input_right_click_method", "two_finger")),
+            "repeat_enabled": self.as_bool(self.custom_value("input_repeat_enabled"), True),
+            "numlock_startup": str(self.custom_value("input_numlock_startup", "unchanged")),
+            "compose_key": str(self.custom_value("input_compose_key", "Disabled")),
             "mouse_speed": int(self.custom_value("mouse_speed", 50)),
         }
 
@@ -1239,13 +1839,20 @@ class SettingsBackend:
             {
                 "input_tap_to_click": bool(values["tap_to_click"]),
                 "input_natural_scroll": bool(values["natural_scroll"]),
+                "input_two_finger_scroll": bool(values["two_finger_scroll"]),
+                "input_disable_touchpad_while_typing": bool(values["disable_while_typing"]),
+                "input_acceleration_profile": str(values["acceleration_profile"]),
+                "input_right_click_method": str(values["right_click_method"]),
+                "input_repeat_enabled": bool(values["repeat_enabled"]),
+                "input_numlock_startup": str(values["numlock_startup"]),
+                "input_compose_key": str(values["compose_key"]),
                 "mouse_speed": int(values["mouse_speed"]),
             }
         )
         return ApplyResult(
             True,
             "Input settings applied.",
-            details=["Keyboard layout and repeat settings were written to KDE user config.", "Touchpad and pointer preferences were stored for KeskOS integration."],
+            details=["Keyboard layout and repeat settings were written to KDE user config.", "Touchpad, pointer, NumLock, and compose-key preferences were stored for KeskOS integration."],
             requires=["Keyboard layout changes may require logging out on Wayland."],
             backup_path=backup,
         )
@@ -1255,31 +1862,45 @@ class SettingsBackend:
             "session": os.environ.get("XDG_SESSION_TYPE", "unknown"),
             "plasma_version": first_nonempty_line(["plasmashell", "--version"]) if command_exists("plasmashell") else "unavailable",
             "output_summary": "Display detection unavailable",
+            "monitor_list": [],
         }
         tool = self.tools.get("kscreen-doctor")
         if tool:
-            result = self._run([tool, "-o"], capture=True, timeout=20)
+            result = self._run([tool, "-o"], capture=True, timeout=4)
             if result is not None and result.returncode == 0:
                 info["output_summary"] = result.stdout.strip() or "No output details were returned."
+                monitors: list[str] = []
+                for line in result.stdout.splitlines():
+                    stripped = line.strip()
+                    if stripped.startswith("Output:"):
+                        monitors.append(stripped.split("Output:", 1)[1].strip())
+                info["monitor_list"] = monitors
         return info
 
     def display_state(self) -> dict[str, Any]:
-        data = self.parse_display_info()
+        data = display_backend.read_current(self)
         data["night_color"] = self.as_bool(self.custom_value("display_night_color"), False)
+        data["scale_percent"] = int(self.custom_value("display_scale_percent", data.get("scale_percent", 100)))
+        data["refresh_rate"] = int(self.custom_value("display_refresh_rate", data.get("refresh_rate", 60)))
+        data["orientation"] = str(self.custom_value("display_orientation", data.get("orientation", "Normal")))
+        data["brightness"] = int(self.custom_value("display_brightness", data.get("brightness", 100)))
+        data["resolution"] = str(self.custom_value("display_resolution", data.get("resolution", "Automatic")))
         return data
 
     def apply_display(self, values: dict[str, Any]) -> ApplyResult:
         backup = self.backup_files("display", (self.kwinrc, self.paths.settings_path))
-        self.kwrite(self.kwinrc, ("NightColor",), "Active", self.bool_text(bool(values["night_color"])))
-        self.set_custom_values({"display_night_color": bool(values["night_color"])})
-        self.reconfigure_kwin()
-        return ApplyResult(
-            True,
-            "Display preferences stored.",
-            details=["Night Color preference was updated."],
-            requires=["Use the advanced KDE display page for monitor layout, scale, and refresh-rate changes."],
-            backup_path=backup,
+        payload = display_backend.apply_changes(self, values)
+        self.set_custom_values(
+            {
+                "display_night_color": bool(values["night_color"]),
+                "display_scale_percent": int(values["scale_percent"]),
+                "display_refresh_rate": int(values["refresh_rate"]),
+                "display_orientation": str(values["orientation"]),
+                "display_brightness": int(values["brightness"]),
+                "display_resolution": str(values["resolution"]),
+            }
         )
+        return self._wrap_backend_payload(payload, backup_path=backup, refresh_runtime=True)
 
     def _parse_wpctl_volume(self, target: str) -> tuple[int, bool]:
         tool = self.tools.get("wpctl")
@@ -1295,45 +1916,36 @@ class SettingsBackend:
             volume = max(0, min(int(float(match.group(1)) * 100), 150))
         return volume, "[MUTED]" in text
 
+    def _pactl_short(self, category: str) -> list[str]:
+        tool = self.tools.get("pactl")
+        if not tool:
+            return []
+        result = self._run([tool, "list", "short", category], capture=True, timeout=10)
+        if result is None or result.returncode != 0:
+            return []
+        rows: list[str] = []
+        for line in result.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 2:
+                rows.append(parts[1].strip())
+        return rows
+
     def sound_state(self) -> dict[str, Any]:
-        output_volume, output_muted = self._parse_wpctl_volume("@DEFAULT_AUDIO_SINK@")
-        input_volume, input_muted = self._parse_wpctl_volume("@DEFAULT_AUDIO_SOURCE@")
-        default_sink = "unavailable"
-        default_source = "unavailable"
-        if self.tools.get("pactl"):
-            result = self._run([self.tools["pactl"], "info"], capture=True, timeout=10)
-            if result is not None:
-                for line in result.stdout.splitlines():
-                    if line.startswith("Default Sink:"):
-                        default_sink = line.split(":", 1)[1].strip()
-                    if line.startswith("Default Source:"):
-                        default_source = line.split(":", 1)[1].strip()
-        return {
-            "default_sink": default_sink,
-            "default_source": default_source,
-            "output_volume": output_volume,
-            "output_muted": output_muted,
-            "input_volume": input_volume,
-            "input_muted": input_muted,
-        }
+        state = audio_backend.read_current(self)
+        state["audio_profile"] = str(self.custom_value("sound_audio_profile", "Stereo"))
+        return state
 
     def apply_sound(self, values: dict[str, Any]) -> ApplyResult:
-        details: list[str] = []
-        warnings: list[str] = []
-        tool = self.tools.get("wpctl")
-        if tool:
-            self._run([tool, "set-volume", "@DEFAULT_AUDIO_SINK@", f"{int(values['output_volume'])}%"], capture=True, timeout=10)
-            self._run([tool, "set-mute", "@DEFAULT_AUDIO_SINK@", "1" if values["output_muted"] else "0"], capture=True, timeout=10)
-            self._run([tool, "set-volume", "@DEFAULT_AUDIO_SOURCE@", f"{int(values['input_volume'])}%"], capture=True, timeout=10)
-            self._run([tool, "set-mute", "@DEFAULT_AUDIO_SOURCE@", "1" if values["input_muted"] else "0"], capture=True, timeout=10)
-            details.append("Updated PipeWire default input and output volume.")
-        else:
-            warnings.append("wpctl was not available, so volume changes could not be applied.")
-        return ApplyResult(True, "Sound settings applied.", details=details, warnings=warnings)
+        backup = self.backup_files("sound", (self.paths.settings_path,))
+        self.set_custom_values({"sound_audio_profile": str(values["audio_profile"])})
+        payload = audio_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
 
     def network_state(self) -> dict[str, Any]:
         wifi_enabled = None
         current_network = "unavailable"
+        available_networks: list[str] = []
+        ethernet_status = "unknown"
         tool = self.tools.get("nmcli")
         if tool:
             result = self._run([tool, "radio", "wifi"], capture=True, timeout=10)
@@ -1345,9 +1957,22 @@ class SettingsBackend:
                     if line.startswith("yes:"):
                         current_network = line.split(":", 1)[1].strip() or "hidden network"
                         break
+            result = self._run([tool, "-t", "-f", "SSID", "dev", "wifi"], capture=True, timeout=10)
+            if result is not None:
+                available_networks = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+            result = self._run([tool, "-t", "-f", "DEVICE,TYPE,STATE", "dev"], capture=True, timeout=10)
+            if result is not None:
+                for line in result.stdout.splitlines():
+                    parts = line.split(":")
+                    if len(parts) >= 3 and parts[1] == "ethernet":
+                        ethernet_status = parts[2]
+                        break
         return {
             "wifi_enabled": wifi_enabled,
             "current_network": current_network,
+            "available_networks": available_networks,
+            "ethernet_status": ethernet_status,
+            "metered": self.as_bool(self.custom_value("network_metered"), False),
             "hostname": socket.gethostname(),
         }
 
@@ -1375,6 +2000,7 @@ class SettingsBackend:
             else:
                 warnings.append("Hostname change requires pkexec and hostnamectl.")
 
+        self.set_custom_values({"network_metered": bool(values.get("metered", False))})
         return ApplyResult(True, "Network settings updated.", details=details, warnings=warnings, requires=["System hostname changes affect new sessions immediately."])
 
     def power_state(self) -> dict[str, Any]:
@@ -1389,6 +2015,9 @@ class SettingsBackend:
             "blank_timeout": int(self.custom_value("power_blank_timeout", 10)),
             "sleep_timeout": int(self.custom_value("power_sleep_timeout", 30)),
             "show_battery_percent": self.as_bool(self.custom_value("power_show_battery_percent"), True),
+            "lid_action": str(self.custom_value("power_lid_action", "sleep")),
+            "dim_screen": self.as_bool(self.custom_value("power_dim_screen"), True),
+            "low_battery_action": str(self.custom_value("power_low_battery_action", "suspend")),
         }
 
     def apply_power(self, values: dict[str, Any]) -> ApplyResult:
@@ -1409,6 +2038,9 @@ class SettingsBackend:
                 "power_blank_timeout": int(values["blank_timeout"]),
                 "power_sleep_timeout": int(values["sleep_timeout"]),
                 "power_show_battery_percent": bool(values["show_battery_percent"]),
+                "power_lid_action": str(values["lid_action"]),
+                "power_dim_screen": bool(values["dim_screen"]),
+                "power_low_battery_action": str(values["low_battery_action"]),
             }
         )
         return ApplyResult(
@@ -1446,6 +2078,7 @@ class SettingsBackend:
             "display_name": display_name,
             "avatar_path": avatar,
             "autologin": autologin,
+            "account_type": "Administrator" if os.geteuid() == 0 or current_user == "root" else "Standard user",
         }
 
     def apply_user(self, values: dict[str, Any]) -> ApplyResult:
@@ -1518,6 +2151,11 @@ class SettingsBackend:
             "file_manager": self.mime_default("inode/directory") or "org.kde.dolphin.desktop",
             "text_editor": self.mime_default("text/plain") or "org.kde.kate.desktop",
             "image_viewer": self.mime_default("image/png") or "org.kde.gwenview.desktop",
+            "video_player": str(self.custom_value("default_video_player_preference", "")),
+            "music_player": str(self.custom_value("default_music_player_preference", "")),
+            "mail_app": str(self.custom_value("default_mail_preference", "")),
+            "browser_homepage_enabled": self.as_bool(self.custom_value("browser_homepage_enabled"), True),
+            "browser_theme_enabled": self.as_bool(self.custom_value("browser_theme_enabled"), False),
         }
 
     def apply_default_apps(self, values: dict[str, Any]) -> ApplyResult:
@@ -1544,11 +2182,20 @@ class SettingsBackend:
         )
         terminal_command = next((command for desktop_id, _label, command in TERMINAL_OPTIONS if desktop_id == values["terminal"]), "konsole")
         self.kwrite(self.kdeglobals, ("General",), "TerminalApplication", terminal_command)
-        self.set_custom_values({"default_browser_preference": browser})
+        self.set_custom_values(
+            {
+                "default_browser_preference": browser,
+                "default_video_player_preference": str(values.get("video_player", "")),
+                "default_music_player_preference": str(values.get("music_player", "")),
+                "default_mail_preference": str(values.get("mail_app", "")),
+                "browser_homepage_enabled": bool(values.get("browser_homepage_enabled", True)),
+                "browser_theme_enabled": bool(values.get("browser_theme_enabled", False)),
+            }
+        )
         return ApplyResult(
             True,
             "Default applications updated.",
-            details=["Updated xdg-settings, xdg-mime, mimeapps.list, and the KDE terminal preference."],
+            details=["Updated xdg-settings, xdg-mime, mimeapps.list, and the KDE terminal preference.", "Stored browser homepage and extra media/mail preferences for KeskOS integration."],
             backup_path=backup,
         )
 
@@ -1577,53 +2224,12 @@ class SettingsBackend:
         return ApplyResult(True, "Update preferences saved.", details=["Stored Kesk Upgrade notification and source preferences."], backup_path=backup)
 
     def boot_state(self) -> dict[str, Any]:
-        sddm_theme = "unavailable"
-        plymouth_theme = "unavailable"
-        quiet_boot = self.as_bool(self.custom_value("boot_quiet_boot"), True)
-        if Path("/etc/sddm.conf.d").is_dir():
-            for config_path in sorted(Path("/etc/sddm.conf.d").glob("*.conf")):
-                parser = configparser.ConfigParser(interpolation=None)
-                parser.optionxform = str
-                parser.read(config_path, encoding="utf-8")
-                value = parser.get("Theme", "Current", fallback="")
-                if value:
-                    sddm_theme = value
-                    break
-        plymouth_config = Path("/etc/plymouth/plymouthd.conf")
-        if plymouth_config.is_file():
-            parser = configparser.ConfigParser(interpolation=None)
-            parser.optionxform = str
-            parser.read(plymouth_config, encoding="utf-8")
-            plymouth_theme = parser.get("Daemon", "Theme", fallback=plymouth_theme)
-        grub_default = Path("/etc/default/grub")
-        if grub_default.is_file():
-            quiet_boot = "quiet" in grub_default.read_text(encoding="utf-8", errors="replace")
-        return {
-            "sddm_theme": sddm_theme,
-            "plymouth_theme": plymouth_theme,
-            "boot_splash_min_duration": int(self.custom_value("boot_splash_min_duration", 2)),
-            "show_boot_logs": self.as_bool(self.custom_value("boot_show_logs"), False),
-            "quiet_boot": quiet_boot,
-            "login_background": str(self.custom_value("login_background", "")),
-        }
+        return boot_login_backend.read_current(self)
 
     def apply_boot(self, values: dict[str, Any]) -> ApplyResult:
         backup = self.backup_files("boot", (self.paths.settings_path,))
-        self.set_custom_values(
-            {
-                "boot_splash_min_duration": int(values["boot_splash_min_duration"]),
-                "boot_show_logs": bool(values["show_boot_logs"]),
-                "boot_quiet_boot": bool(values["quiet_boot"]),
-                "login_background": str(values["login_background"]).strip(),
-            }
-        )
-        return ApplyResult(
-            True,
-            "Boot and login preferences stored.",
-            details=["System-level SDDM, Plymouth, and bootloader changes still require a dedicated root-backed apply path.", "User-visible KeskOS boot preferences were saved."],
-            requires=["A reboot is required after any future system boot theme changes."],
-            backup_path=backup,
-        )
+        payload = boot_login_backend.apply_changes(self, values)
+        return self._wrap_backend_payload(payload, backup_path=backup)
 
     def prompt_style(self) -> str:
         if self.prompt_overlay_path.is_file():
@@ -1738,14 +2344,21 @@ class SettingsBackend:
     def kesk_state(self) -> dict[str, Any]:
         return {
             "accent_color": str(self.custom_value("accent_color", ACCENT_ORANGE)),
+            "kesk_theme_mode": str(self.custom_value("kesk_theme_mode", "full")),
             "crt_effects": self.as_bool(self.custom_value("crt_effects"), True),
             "scanlines": self.as_bool(self.custom_value("scanlines"), True),
+            "glow_intensity": int(self.custom_value("glow_intensity", 70)),
+            "terminal_font": str(self.custom_value("terminal_font", "JetBrains Mono")),
             "prompt_style": self.prompt_style(),
             "browser_homepage_enabled": self.as_bool(self.custom_value("browser_homepage_enabled"), True),
             "first_run_completed": FIRST_RUN_STATE_FILE.exists(),
             "telemetry_enabled": self.as_bool(self.custom_value("telemetry_enabled"), False),
             "local_analytics_dashboard": self.as_bool(self.custom_value("local_analytics_dashboard"), False),
             "experimental_features": self.as_bool(self.custom_value("experimental_features"), False),
+            "quickshell_experimental_mode": self.as_bool(self.custom_value("quickshell_experimental_mode"), False),
+            "new_launcher_backend": self.as_bool(self.custom_value("new_launcher_backend"), False),
+            "new_settings_backend": self.as_bool(self.custom_value("new_settings_backend"), False),
+            "debug_ui_overlays": self.as_bool(self.custom_value("debug_ui_overlays"), False),
         }
 
     def apply_kesk(self, values: dict[str, Any], default_browser: str) -> ApplyResult:
@@ -1754,13 +2367,20 @@ class SettingsBackend:
         self.set_custom_values(
             {
                 "accent_color": str(values["accent_color"]),
+                "kesk_theme_mode": str(values.get("kesk_theme_mode", "full")),
                 "crt_effects": bool(values["crt_effects"]),
                 "scanlines": bool(values["scanlines"]),
+                "glow_intensity": int(values.get("glow_intensity", 70)),
+                "terminal_font": str(values.get("terminal_font", "JetBrains Mono")),
                 "prompt_style": str(values["prompt_style"]),
                 "browser_homepage_enabled": bool(values["browser_homepage_enabled"]),
                 "telemetry_enabled": bool(values["telemetry_enabled"]),
                 "local_analytics_dashboard": bool(values["local_analytics_dashboard"]),
                 "experimental_features": bool(values["experimental_features"]),
+                "quickshell_experimental_mode": bool(values.get("quickshell_experimental_mode", False)),
+                "new_launcher_backend": bool(values.get("new_launcher_backend", False)),
+                "new_settings_backend": bool(values.get("new_settings_backend", False)),
+                "debug_ui_overlays": bool(values.get("debug_ui_overlays", False)),
             }
         )
         self.write_prompt_style(str(values["prompt_style"]))
@@ -1780,8 +2400,10 @@ class SettingsBackend:
         version_name, build_id = collect_release_info(self.paths.root)
         desktop_session = os.environ.get("DESKTOP_SESSION", "unavailable")
         current_desktop = os.environ.get("XDG_CURRENT_DESKTOP", "unavailable")
+        session_type = os.environ.get("XDG_SESSION_TYPE", "unavailable")
         current_shell = os.environ.get("SHELL", "unavailable")
         plasma_version = first_nonempty_line(["plasmashell", "--version"]) if command_exists("plasmashell") else "unavailable"
+        frameworks_version = detect_frameworks_version()
         qt_version = detect_qt_version()
         kernel = first_nonempty_line(["uname", "-r"])
         return [
@@ -1790,9 +2412,15 @@ class SettingsBackend:
             ("Base distro", "Arch Linux"),
             ("Desktop", current_desktop),
             ("Desktop session", desktop_session),
+            ("Graphics platform", session_type),
             ("Plasma version", plasma_version),
+            ("KDE Frameworks version", frameworks_version),
             ("Qt version", qt_version),
             ("Kernel", kernel),
+            ("CPU", detect_cpu_model()),
+            ("GPU", detect_gpu_model()),
+            ("RAM", detect_total_ram()),
+            ("Root disk", detect_root_disk()),
             ("Active user", getpass.getuser()),
             ("Hostname", socket.gethostname()),
             ("Uptime", detect_uptime()),
@@ -1831,17 +2459,59 @@ class SettingsBackend:
             "plasmarc": self.plasmarc,
             "kcminputrc": self.kcminputrc,
             "kxkbrc": self.kxkbrc,
+            "mimeapps": self.mimeapps,
+            "baloofilerc": self.baloofilerc,
+            "kioslaverc": self.kioslaverc,
+            "dunstrc": notifications_backend.get_config_path(self),
             "kesk_settings": self.paths.settings_path,
             "backups_dir": self.paths.backups_dir,
+            "privileged_helper": privileged_backend.helper_path(self),
         }
         writable = {name: path.parent.exists() and os.access(path.parent, os.W_OK) for name, path in config_paths.items()}
+        plasma_desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
+        notifications_state = notifications_backend.read_current(self, ensure_config=False)
+        backend_states = {
+            "accessibility": self.accessibility_state()["status"],
+            "bluetooth": self.bluetooth_state()["status"],
+            "online_accounts": self.online_accounts_state()["status"],
+            "vpn": self.vpn_state()["status"],
+            "proxy": self.proxy_state()["status"],
+            "file_associations": self.file_associations_state()["status"],
+            "task_switcher": self.task_switcher_state()["status"],
+            "notifications": notifications_state["status"],
+            "search": self.search_backend_state()["status"],
+            "privacy": self.privacy_state()["status"],
+            "audio": self.sound_state()["status"],
+            "display": self.display_state()["status"],
+            "boot_login": self.boot_state()["status"],
+        }
         return {
             "session_type": os.environ.get("XDG_SESSION_TYPE", "unknown"),
             "display": os.environ.get("DISPLAY", ""),
             "wayland_display": os.environ.get("WAYLAND_DISPLAY", ""),
+            "plasma_session_detected": "plasma" in plasma_desktop.lower() or "kde" in plasma_desktop.lower(),
+            "graphical_session_available": bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")),
             "plasma_version": first_nonempty_line(["plasmashell", "--version"]) if command_exists("plasmashell") else "unavailable",
             "qt_version": detect_qt_version(),
             "tools": {name: bool(path) for name, path in self.tools.items()},
             "config_paths": {name: str(path) for name, path in config_paths.items()},
             "writable": writable,
+            "policy_present": privileged_backend.policy_path(self).is_file(),
+            "notifications_runtime": {
+                "runtime_notifier": str(notifications_state["runtime_notifier"]),
+                "running": bool(notifications_state["dunst_running"]),
+                "config_path": str(notifications_state["config_path"]),
+                "config_writable": bool(notifications_state["config_writable"]),
+                "do_not_disturb": notifications_state["do_not_disturb"] if notifications_state["dnd_supported"] else "unavailable",
+                "dnd_supported": bool(notifications_state["dnd_supported"]),
+            },
+            "backend_statuses": {
+                name: {
+                    "code": status.code,
+                    "summary": status.summary,
+                    "missing_tools": list(status.missing_tools),
+                    "admin_required": status.admin_required,
+                }
+                for name, status in backend_states.items()
+            },
         }

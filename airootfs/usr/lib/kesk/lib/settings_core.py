@@ -55,6 +55,8 @@ def print_dry_run(console: KeskConsole, backend: SettingsBackend) -> int:
     console.status("ok", f"session type: {report['session_type']}")
     console.status("ok", f"plasma version: {report['plasma_version']}")
     console.status("ok", f"qt version: {report['qt_version']}")
+    console.status("ok" if report["plasma_session_detected"] else "warn", f"plasma session detected: {'yes' if report['plasma_session_detected'] else 'no'}")
+    console.status("ok" if report["graphical_session_available"] else "warn", f"graphical session available: {'yes' if report['graphical_session_available'] else 'no'}")
     console.line()
     console.section("SESSION")
     console.line(f"DISPLAY         {report['display'] or 'unset'}")
@@ -68,6 +70,37 @@ def print_dry_run(console: KeskConsole, backend: SettingsBackend) -> int:
     for name, path in report["config_paths"].items():
         writable = report["writable"].get(name, False)
         console.status("ok" if writable else "warn", f"{name}: {path}")
+    console.line()
+    console.section("PRIVILEGED")
+    console.status("ok" if report["policy_present"] else "warn", f"polkit policy present: {'yes' if report['policy_present'] else 'no'}")
+    console.line()
+    console.section("NOTIFICATIONS")
+    notifications = report["notifications_runtime"]
+    console.status("ok", f"runtime notifier: {notifications['runtime_notifier']}")
+    console.status("ok" if notifications["running"] else "warn", f"dunst running: {'yes' if notifications['running'] else 'no'}")
+    console.status("ok" if notifications["config_writable"] else "warn", f"dunstrc path: {notifications['config_path']}")
+    if notifications["dnd_supported"]:
+        console.status(
+            "ok" if notifications["do_not_disturb"] else "work",
+            f"do not disturb: {'enabled' if notifications['do_not_disturb'] else 'disabled'}",
+        )
+    else:
+        console.status("skip", "do not disturb: unavailable")
+    console.line()
+    console.section("BACKENDS")
+    for name, payload in sorted(report["backend_statuses"].items()):
+        code = payload["code"]
+        kind = {
+            "connected": "ok",
+            "limited": "work",
+            "missing": "skip",
+            "requires_admin": "warn",
+        }.get(code, "skip")
+        console.status(kind, f"{name}: {payload['summary']}")
+        if payload["missing_tools"]:
+            console.line(f"    missing tools: {', '.join(payload['missing_tools'])}")
+        if payload["admin_required"]:
+            console.line("    requires admin permission")
     return 0
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QCheckBox, QLabel, QLineEdit
 
-from ..widgets import SettingsSection, action_bar, small_button
+from ..widgets import SettingsSection, action_bar, info_list, planned_button, small_button
 from .base import BasePage
 
 
@@ -10,53 +10,64 @@ class NetworkPage(BasePage):
     page_key = "network"
 
     def __init__(self, controller) -> None:
-        super().__init__(controller, "Network", "Expose safe network preferences here without trying to replace NetworkManager’s full management UI.")
+        super().__init__(controller, "Wi-Fi & Internet", "Connect to Wi-Fi, Ethernet and manage internet access.")
         self.backend = controller.backend
         self._build_ui()
         self.load_state()
 
     def _build_ui(self) -> None:
-        info = SettingsSection("Network overview")
+        section = SettingsSection("Connection status", "Connect to Wi-Fi, Ethernet and manage internet access.")
         self.wifi_enabled = QCheckBox("Enable Wi-Fi radio")
         self.current_network = QLabel()
+        self.available_networks = QLabel()
+        self.available_networks.setWordWrap(True)
+        self.ethernet_status = QLabel()
+        self.metered = QCheckBox("Treat current connection as metered")
         self.hostname = QLineEdit()
-        info.add_row("Wi-Fi", "Enable or disable the NetworkManager Wi-Fi radio.", self.wifi_enabled, keywords="wifi wireless radio")
-        info.add_row("Current network", "Current active wireless network if one is connected.", self.current_network, keywords="network ssid current")
-        info.add_row("Hostname", "System hostname. Changing this requires pkexec.", self.hostname, keywords="hostname computer name")
-        self.add_section(info)
 
-        advanced = SettingsSection("Advanced network settings")
-        open_network = small_button("Open KDE Network Settings")
-        open_network.clicked.connect(lambda: self.controller.open_kcm("kcm_networkmanagement"))
-        advanced.add_widget(action_bar(open_network), keywords="advanced network manager")
-        self.add_section(advanced)
+        section.add_row("Wi-Fi", "Enable or disable the NetworkManager Wi-Fi radio.", self.wifi_enabled, keywords="wifi wireless radio")
+        section.add_row("Current connection", "Current active wireless connection if one is connected.", self.current_network, keywords="wifi current connection ssid")
+        section.add_row("Available networks", "Nearby networks reported by NetworkManager.", self.available_networks, keywords="available networks wifi")
+        section.add_row("Ethernet status", "Current wired-network status.", self.ethernet_status, keywords="ethernet wired status")
+        section.add_row("Metered connection", "Reduce background activity on limited connections.", self.metered, keywords="metered connection data")
+        section.add_row("Hostname", "System hostname. Changing this requires pkexec.", self.hostname, keywords="hostname computer name")
 
-        apply_button = small_button("Apply", primary=True)
-        apply_button.clicked.connect(self.apply_changes)
-        refresh_button = small_button("Refresh")
-        refresh_button.clicked.connect(self.load_state)
-        actions = SettingsSection("Apply changes")
-        actions.add_widget(action_bar(apply_button, refresh_button), keywords="apply refresh")
-        self.add_section(actions)
+        connect_button = planned_button("Connect")
+        disconnect_button = planned_button("Disconnect")
+        advanced_button = small_button("Open Advanced Network Settings")
+        advanced_button.clicked.connect(lambda: self.controller.open_kcm("kcm_networkmanagement"))
+        section.add_row(
+            "Network actions",
+            "Connect, disconnect, and edit saved networks from KDE's network module.",
+            action_bar(connect_button, disconnect_button, advanced_button),
+            keywords="connect disconnect advanced network",
+        )
+        self.add_section(section)
 
     def load_state(self) -> None:
+        self.begin_refresh()
         state = self.backend.network_state()
         if state["wifi_enabled"] is None:
-            self.wifi_enabled.setCheckState(self.wifi_enabled.checkState())
             self.wifi_enabled.setEnabled(False)
         else:
             self.wifi_enabled.setEnabled(True)
             self.wifi_enabled.setChecked(bool(state["wifi_enabled"]))
         self.current_network.setText(str(state["current_network"]))
+        networks = state.get("available_networks") or []
+        self.available_networks.setText("\n".join(f"- {item}" for item in networks[:12]) if networks else "No network list available.")
+        self.ethernet_status.setText(str(state.get("ethernet_status", "unknown")))
+        self.metered.setChecked(bool(state.get("metered", False)))
         self.hostname.setText(str(state["hostname"]))
+        self.finish_refresh()
 
     def apply_changes(self) -> None:
         values = {
             "wifi_enabled": self.wifi_enabled.isChecked() if self.wifi_enabled.isEnabled() else None,
             "hostname": self.hostname.text().strip(),
+            "metered": self.metered.isChecked(),
         }
         result = self.backend.apply_network(values)
-        self.show_result(result, "Network")
+        self.show_result(result, "Wi-Fi & Internet")
         self.load_state()
 
     def on_activated(self) -> None:

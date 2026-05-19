@@ -1,0 +1,283 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import configparser
+from datetime import datetime
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+
+BACKUP_ROOT = Path("/var/lib/kesk/settings-backups")
+
+
+def fail(message: str) -> int:
+    print(message, file=sys.stderr)
+    return 1
+
+
+def backup_paths(paths: list[Path]) -> Path:
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    root = BACKUP_ROOT / timestamp
+    root.mkdir(parents=True, exist_ok=True)
+    for path in paths:
+        if not path.exists():
+            continue
+        target = root / str(path).lstrip("/")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if path.is_file():
+            shutil.copy2(path, target)
+    return root
+
+
+def ensure_theme_dir(base: Path, theme: str) -> Path:
+    candidate = (base / theme).resolve()
+    if not candidate.is_dir() or candidate.parent != base.resolve():
+        raise ValueError(f"Theme `{theme}` was not found in {base}.")
+    return candidate
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def set_sddm_theme(theme: str) -> int:
+    theme_dir = ensure_theme_dir(Path("/usr/share/sddm/themes"), theme)
+    conf_dir = Path("/etc/sddm.conf.d")
+    backup_paths([Path("/etc/sddm.conf"), *sorted(conf_dir.glob("*.conf"))])
+    conf_dir.mkdir(parents=True, exist_ok=True)
+    write_text(conf_dir / "kesk-theme.conf", f"[Theme]\nCurrent={theme_dir.name}\n")
+    print(f"SDDM theme set to {theme_dir.name}")
+    return 0
+
+
+def set_sddm_background(theme: str, background: str) -> int:
+    theme_dir = ensure_theme_dir(Path("/usr/share/sddm/themes"), theme)
+    background_path = Path(background).expanduser().resolve()
+    if not background_path.is_file():
+        return fail("The requested SDDM background file was not found.")
+
+    theme_conf = theme_dir / "theme.conf"
+    if not theme_conf.is_file():
+        return fail("The selected SDDM theme does not expose theme.conf for background editing.")
+
+    backup_paths([theme_conf])
+    lines = theme_conf.read_text(encoding="utf-8", errors="replace").splitlines()
+    replaced = False
+    new_lines: list[str] = []
+    in_general = False
+    saw_general = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            if in_general and not replaced:
+                new_lines.append(f"background={background_path}")
+                replaced = True
+            in_general = stripped == "[General]"
+            saw_general = saw_general or in_general
+            new_lines.append(line)
+            continue
+        if in_general and stripped.startswith("background="):
+            new_lines.append(f"background={background_path}")
+            replaced = True
+        else:
+            new_lines.append(line)
+    if not saw_general:
+        new_lines.extend(["", "[General]", f"background={background_path}"])
+    elif in_general and not replaced:
+        new_lines.append(f"background={background_path}")
+    write_text(theme_conf, "\n".join(new_lines).rstrip() + "\n")
+    print(f"SDDM background updated for theme {theme_dir.name}")
+    return 0
+
+
+def run_command(command: list[str], timeout: int = 600) -> int:
+    try:
+        result = subprocess.run(command, check=False, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    return result.returncode
+
+
+def set_plymouth_theme(theme: str) -> int:
+    theme_dir = ensure_theme_dir(Path("/usr/share/plymouth/themes"), theme)
+    backup_paths([Path("/etc/plymouth/plymouthd.conf")])
+    if shutil.which("plymouth-set-default-theme") is None:
+        return fail("plymouth-set-default-theme is not installed.")
+    exit_code = run_command(["plymouth-set-default-theme", theme_dir.name, "-R"])
+    if exit_code == 0:
+        print(f"Plymouth theme set to {theme_dir.name}")
+        return 0
+    if run_command(["plymouth-set-default-theme", theme_dir.name]) == 0 and shutil.which("mkinitcpio"):
+        exit_code = run_command(["mkinitcpio", "-P"])
+        if exit_code == 0:
+            print(f"Plymouth theme set to {theme_dir.name} and initramfs rebuilt")
+            return 0
+    return fail("Plymouth theme could not be applied.")
+
+
+def _normalize_kernel_tokens(tokens: list[str], enabled: bool) -> list[str]:
+    tokens = [token for token in tokens if token]
+    for candidate in ("quiet", "splash"):
+        while candidate in tokens:
+            tokens.remove(candidate)
+    if enabled:
+        tokens.extend(["quiet", "splash"])
+    return tokens
+
+
+def _rewrite_grub_default(path: Path, enabled: bool) -> bool:
+    if not path.is_file():
+        return False
+    original = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    updated: list[str] = []
+    changed = False
+    pattern = re.compile(r'^(GRUB_CMDLINE_LINUX_DEFAULT=)"(.*)"\s*$')
+    for line in original:
+        match = pattern.match(line)
+        if not match:
+            updated.append(line)
+            continue
+        prefix, raw = match.groups()
+        tokens = _normalize_kernel_tokens(raw.split(), enabled)
+        new_line = f'{prefix}"{" ".join(tokens)}"'
+        updated.append(new_line)
+        changed = changed or new_line != line
+    if changed:
+        write_text(path, "\n".join(updated).rstrip() + "\n")
+    return changed
+
+
+def _rewrite_loader_entries(entries_dir: Path, enabled: bool) -> bool:
+    if not entries_dir.is_dir():
+        return False
+    changed = False
+    for entry in sorted(entries_dir.glob("*.conf")):
+        original = entry.read_text(encoding="utf-8", errors="replace").splitlines()
+        updated: list[str] = []
+        file_changed = False
+        for line in original:
+            if not line.startswith("options "):
+                updated.append(line)
+                continue
+            tokens = _normalize_kernel_tokens(line.removeprefix("options ").split(), enabled)
+            new_line = f"options {' '.join(tokens)}".rstrip()
+            updated.append(new_line)
+            file_changed = file_changed or new_line != line
+        if file_changed:
+            write_text(entry, "\n".join(updated).rstrip() + "\n")
+            changed = True
+    return changed
+
+
+def _rewrite_kernel_cmdline(path: Path, enabled: bool) -> bool:
+    if not path.is_file():
+        return False
+    tokens = _normalize_kernel_tokens(path.read_text(encoding="utf-8", errors="replace").split(), enabled)
+    new_text = " ".join(tokens).strip() + "\n"
+    old_text = path.read_text(encoding="utf-8", errors="replace")
+    if new_text != old_text:
+        write_text(path, new_text)
+        return True
+    return False
+
+
+def set_quiet_boot(enabled: bool) -> int:
+    grub_default = Path("/etc/default/grub")
+    loader_entries = Path("/boot/loader/entries")
+    kernel_cmdline = Path("/etc/kernel/cmdline")
+    backup_targets = [grub_default, kernel_cmdline]
+    backup_targets.extend(sorted(loader_entries.glob("*.conf")) if loader_entries.is_dir() else [])
+    backup_paths(backup_targets)
+    changed = False
+    changed = _rewrite_grub_default(grub_default, enabled) or changed
+    changed = _rewrite_loader_entries(loader_entries, enabled) or changed
+    changed = _rewrite_kernel_cmdline(kernel_cmdline, enabled) or changed
+    if grub_default.is_file() and shutil.which("grub-mkconfig") and Path("/boot/grub/grub.cfg").exists():
+        run_command(["grub-mkconfig", "-o", "/boot/grub/grub.cfg"], timeout=300)
+    print(f"Quiet boot {'enabled' if enabled else 'disabled'}")
+    return 0 if changed or grub_default.exists() or loader_entries.exists() or kernel_cmdline.exists() else fail("No supported bootloader configuration was found.")
+
+
+def set_boot_splash_duration(seconds: int) -> int:
+    if seconds < 0 or seconds > 30:
+        return fail("Boot splash duration must be between 0 and 30 seconds.")
+    config_path = Path("/etc/keskos/boot.conf")
+    backup_paths([config_path])
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.optionxform = str
+    if config_path.is_file():
+        parser.read(config_path, encoding="utf-8")
+    if not parser.has_section("Boot"):
+        parser.add_section("Boot")
+    parser.set("Boot", "MinSplashDuration", str(seconds))
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with config_path.open("w", encoding="utf-8") as handle:
+        parser.write(handle)
+    print(f"Boot splash minimum duration set to {seconds} seconds")
+    return 0
+
+
+def rebuild_initramfs() -> int:
+    if shutil.which("mkinitcpio") is None:
+        return fail("mkinitcpio is not installed.")
+    return run_command(["mkinitcpio", "-P"], timeout=900)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Kesk Settings privileged helper")
+    subparsers = parser.add_subparsers(dest="action", required=True)
+
+    sddm_theme = subparsers.add_parser("set-sddm-theme")
+    sddm_theme.add_argument("theme")
+
+    sddm_background = subparsers.add_parser("set-sddm-background")
+    sddm_background.add_argument("theme")
+    sddm_background.add_argument("background")
+
+    plymouth = subparsers.add_parser("set-plymouth-theme")
+    plymouth.add_argument("theme")
+
+    quiet = subparsers.add_parser("set-quiet-boot")
+    quiet.add_argument("state", choices=("on", "off"))
+
+    duration = subparsers.add_parser("set-boot-splash-duration")
+    duration.add_argument("seconds", type=int)
+
+    subparsers.add_parser("rebuild-initramfs")
+    return parser
+
+
+def main(argv: list[str]) -> int:
+    parser = build_parser()
+    if argv and argv[0] in {"--help", "-h", "help"}:
+        parser.print_help()
+        return 0
+
+    if os.geteuid() != 0:
+        return fail("This helper must be run as root through pkexec.")
+
+    args = parser.parse_args(argv)
+    if args.action == "set-sddm-theme":
+        return set_sddm_theme(args.theme)
+    if args.action == "set-sddm-background":
+        return set_sddm_background(args.theme, args.background)
+    if args.action == "set-plymouth-theme":
+        return set_plymouth_theme(args.theme)
+    if args.action == "set-quiet-boot":
+        return set_quiet_boot(args.state == "on")
+    if args.action == "set-boot-splash-duration":
+        return set_boot_splash_duration(args.seconds)
+    if args.action == "rebuild-initramfs":
+        return rebuild_initramfs()
+    return fail("Unknown helper action.")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

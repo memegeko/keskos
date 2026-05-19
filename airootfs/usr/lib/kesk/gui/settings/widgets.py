@@ -3,11 +3,14 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
+    QRadioButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -205,3 +208,52 @@ def select_combo_value(combo: QComboBox, value: str) -> None:
         if combo.itemData(index) == value:
             combo.setCurrentIndex(index)
             return
+
+
+def planned_toggle(text: str = "Enabled", *, checked: bool = False, radio: bool = False) -> QWidget:
+    widget = QRadioButton(text) if radio else QCheckBox(text)
+    widget.setChecked(checked)
+    widget.setEnabled(False)
+    widget.setToolTip("Backend not connected yet.")
+    return widget
+
+
+def planned_combo(options: list[tuple[str, str]] | list[str], current: int = 0) -> QComboBox:
+    combo = QComboBox()
+    normalized = []
+    for option in options:
+        if isinstance(option, str):
+            normalized.append((option, option))
+        else:
+            normalized.append(option)
+    populate_combo(combo, normalized)
+    if 0 <= current < combo.count():
+        combo.setCurrentIndex(current)
+    combo.setEnabled(False)
+    combo.setToolTip("Backend not connected yet.")
+    return combo
+
+
+def planned_button(text: str) -> QPushButton:
+    button = QPushButton(text)
+    button.setEnabled(False)
+    button.setToolTip("Backend not connected yet.")
+    return button
+
+
+def planned_field(text: str = "", placeholder: str = "") -> QLineEdit:
+    field = QLineEdit(text)
+    field.setPlaceholderText(placeholder)
+    field.setEnabled(False)
+    field.setToolTip("Backend not connected yet.")
+    return field
+
+
+def info_list(items: list[str], empty_text: str) -> QLabel:
+    label = QLabel()
+    label.setWordWrap(True)
+    if items:
+        label.setText("\n".join(f"- {item}" for item in items))
+    else:
+        label.setText(empty_text)
+    return label

@@ -35,7 +35,10 @@ This change set is intended for the `beta-development` branch.
 - hardened live-image permissions and logging fallback for the new `kesk` tools
 - extended the `kesk` router so `help`, unknown-command output, and command dispatch now include `doctor`, `repair`, and `settings`
 - expanded `kesk repair` so full theme and visual-identity restoration stays inside the repair console instead of being split into a separate theme tool
-- upgraded `kesk settings` from a terminal-only launcher into a PySide6 control center with dashboard, updates, doctor, repair, appearance, desktop, boot/login, logs, and about pages
+- upgraded `kesk settings` from a terminal-only launcher into a PySide6 system-settings app with a grouped Plasma-style sidebar, Quick Settings page, direct KDE-backed controls, and focused handoff pages
+- filled out the Kesk Settings page set so every sidebar category now shows a non-empty settings screen with real controls, status rows, or explicit planned-backend placeholders
+- added modular Kesk Settings backends for accessibility, Bluetooth, VPN/proxy, MIME associations, search/privacy, audio, display, and privileged boot/login actions
+- retargeted the Kesk Settings Notifications page to Dunst as the real runtime notifier, including direct `dunstrc` editing, DND/reload/test actions, and a branded KeskOS preset
 - rewrote installed-system pacman setup during post-install so the target system gets a usable mirror-backed repo configuration
 - renamed the default installer desktop profile wording to `KeskOS Split Shell Profile`
 - updated README and docs to mark this line as beta-branch work
@@ -46,6 +49,10 @@ This change set is intended for the `beta-development` branch.
 - fixed updater log initialization when the live user state directory is not writable
 - fixed updater behavior on systems where pacman repositories are not configured yet
 - fixed duplicate/default Plasma panel persistence during the branded panel apply flow
+- fixed the KeskOS global theme apply path so it preserves the managed taskbar and restores the official wallpaper instead of letting generic Plasma look-and-feel resets break them
+- fixed the settings GUI so it no longer crashes when the usual XDG state/config paths are unwritable and instead falls back to a safe runtime path
+- fixed `kesk settings --dry-run` so it now reports per-backend availability, helper/policy visibility, and staged-path status during local repo testing
+- fixed the notifications backend so it no longer treats KDE notifications as primary and instead manages Dunst directly while keeping KDE handoff as an advanced option
 
 ## 2026-05-15
 

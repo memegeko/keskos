@@ -1,101 +1,403 @@
 # Kesk Settings
 
-`kesk settings` is the dedicated KeskOS settings application.
+`kesk settings` is the main KeskOS graphical settings application.
 
-It is a KDE/Qt settings app, not a dashboard and not a command launcher. Its job is to manage user-visible system settings from one place:
+It is designed to feel closer to KDE Plasma System Settings than to a dashboard or launcher:
 
-- KDE Plasma user settings where a safe user-level apply path exists
-- KeskOS-specific settings and preferences
+- grouped category sidebar
+- search field at the top-left
+- black/orange KeskOS shell styling
+- real settings pages on the right
+- bottom `Reset` / `Apply` action bar
 
-It does not try to replace every KDE module, and it does not embed unrelated operational tools.
+It intentionally does **not** turn into:
 
-## What It Configures
+- a repair dashboard
+- an updater dashboard
+- a logs console
+- a package manager
+- a developer tools launcher
 
-Kesk Settings currently provides these categories:
-
-- `Appearance`
-- `Desktop`
-- `Panel & Launcher`
-- `Window Behavior`
-- `Input`
-- `Display`
-- `Sound`
-- `Network`
-- `Power`
-- `Users`
-- `Default Apps`
-- `Updates`
-- `Boot & Login`
-- `KeskOS`
-- `About`
-
-Implemented settings include:
-
-- Plasma look and feel, Plasma theme, color scheme, icon theme, cursor theme, font, wallpaper, and window decoration
-- virtual desktop count and names
-- launcher mode and launcher keybind
-- KWin focus policy, border size, compositor flags, snap behavior, and titlebar layout
-- keyboard layout and repeat settings
-- Night Color toggle
-- default audio volume and mute
-- Wi-Fi radio toggle and hostname apply when `pkexec` and `hostnamectl` are available
-- power profile when `powerprofilesctl` is available
-- avatar copy to `~/.face.icon`
-- default browser, terminal, file manager, editor, and image viewer
-- update policy preferences
-- KeskOS accent, CRT/scanline preferences, prompt style, homepage preference, first-run state, and experimental toggles
-
-Some pages also include a small handoff to the matching KDE settings module when the full feature set is better handled by KDE itself.
-
-## What It Does Not Include
-
-Kesk Settings intentionally does not include:
-
-- repair tools
-- the package updater UI
-- Docker or developer shortcuts
-- server/admin tools
-- logs/debug dashboards
-- package-manager launchers
-- terminal launch shortcuts
-
-Those remain separate commands and launchers:
+Those remain separate commands:
 
 - `kesk upgrade`
-- `kesk repair`
 - `kesk doctor`
+- `kesk repair`
 
-The `Updates` page may offer a small `Open Kesk Upgrade` button, but it does not embed the updater dashboard.
+## Purpose
+
+Kesk Settings is the user-facing place for:
+
+- KDE Plasma user settings that have a safe apply path
+- KeskOS-specific desktop preferences
+- handoff to KDE modules for more complex settings that should stay in KDE’s own tools
+
+It is the normal desktop settings app.
+The operational tools stay outside it on purpose.
+
+## Layout
+
+The current GUI uses a Plasma-style structure:
+
+- title area: `Kesk Settings — System Settings`
+- grouped left sidebar
+- search field with sidebar toggle
+- right content panel
+- page title and description at the top
+- compact sections with rows, toggles, combos, sliders, and buttons
+- bottom `Reset` and `Apply` buttons when the current page supports direct writes
+
+The default page is `Quick Settings`.
+
+## Categories
+
+The sidebar is grouped into these sections:
+
+- `Quick Settings`
+- `Input & Output`
+- `Connected Devices`
+- `Networking`
+- `Appearance & Style`
+- `Apps & Windows`
+- `System`
+- `KeskOS`
+
+Implemented pages include:
+
+- `Quick Settings`
+- `Mouse & Touchpad`
+- `Keyboard`
+- `Sound`
+- `Display & Monitor`
+- `Accessibility`
+- `Disks & Cameras`
+- `Printers`
+- `Removable Storage`
+- `Bluetooth`
+- `Wi-Fi & Internet`
+- `Online Accounts`
+- `VPN`
+- `Proxy`
+- `Wallpaper`
+- `Colors & Themes`
+- `Text & Fonts`
+- `Icons`
+- `Cursors`
+- `Window Decorations`
+- `Splash Screen`
+- `Login Screen`
+- `Default Applications`
+- `File Associations`
+- `Window Behavior`
+- `Task Switcher`
+- `Shortcuts`
+- `Notifications`
+- `Search`
+- `Power Management`
+- `Users`
+- `Region & Language`
+- `Date & Time`
+- `Privacy & Security`
+- `Boot & Login`
+- `Updates`
+- `About This System`
+- `KeskOS Theme`
+- `Panels & Launcher`
+- `HUD / Widgets`
+- `Browser Defaults`
+- `Boot Splash`
+- `Experimental Features`
+
+No sidebar page is intentionally blank.
+Every page now includes:
+
+- a title and scope description
+- compact settings rows or status rows
+- real controls where a safe backend already exists
+- disabled planned controls where the backend is not connected yet
+- KDE module handoff buttons where that is the safer or more complete path
+
+Some pages already write settings directly.
+Some pages currently provide focused read-only state plus a safe handoff to a KDE module.
+When a page is not fully wired yet, it states:
+
+`This setting will use KDE config backend when implemented.`
+
+## Quick Settings
+
+`Quick Settings` is the first page and includes:
+
+- theme preview cards:
+  - `Breeze`
+  - `Breeze Dark`
+  - `Automatic`
+  - `KeskOS Dark`
+- appearance shortcut buttons:
+  - `Wallpaper`
+  - `Global Theme`
+  - `Colors & Themes`
+- animation speed slider
+- file click behavior controls
+- `General Behavior` KDE module handoff
+
+`KeskOS Dark` applies the branded KeskOS theme chain while preserving the managed panel and official wallpaper path.
+
+## What Uses Real KDE Backends
+
+Directly implemented settings currently include combinations of:
+
+- global theme, Plasma theme, color scheme, icon theme, cursor theme, font, window decoration, wallpaper
+- animation duration factor
+- desktop count and workspace names
+- launcher mode and launcher shortcut
+- panel mode and branded panel preferences
+- keyboard layout and repeat settings
+- Night Color
+- audio volume and mute
+- Wi-Fi radio and hostname handoff
+- power profile and timeout preferences
+- user avatar and display name preferences
+- default application handlers
+- update-check preferences
+- boot/login preference storage
+- KeskOS accent, CRT, scanline, homepage, and experimental preferences
+
+KDE module handoff is used where that is safer or more complete, such as:
+
+- accessibility
+- Bluetooth
+- advanced network settings
+- shortcuts
+- search/KRunner
+- region and language
+- date and time
+- privacy/lock-screen settings
+
+## Backend Status
+
+Each backend-facing page now reports one of these states:
+
+- `Connected`
+- `Limited`
+- `Missing tools`
+- `Requires admin`
+
+Current backend coverage:
+
+- `Accessibility`: direct large-text, reduced-animation, and cursor-size writes; advanced KDE handoff for the rest
+- `Bluetooth`: adapter/service/device listing plus connect, disconnect, pair, trust, and remove when `bluetoothctl` exists
+- `Online Accounts`: lightweight account discovery plus KDE Online Accounts handoff
+- `VPN`: NetworkManager-backed list, connect, disconnect, import, and auto-connect
+- `Proxy`: direct KDE proxy writes through `kioslaverc`
+- `File Associations`: MIME search plus safe `xdg-mime` and `mimeapps.list` updates
+- `Task Switcher`: read-only current status plus KWin advanced handoff
+- `Notifications`: Dunst-backed notification editing, Do Not Disturb, test notifications, reload, and branded preset apply
+- `Search`: Baloo indexing on/off and hidden-file indexing, plus KDE search handoff
+- `Privacy`: recent-file cleanup and stored privacy prefs, plus KDE lock-screen/privacy handoff
+- `Audio`: device discovery, default-device switching, mute, and volume through `wpctl`/`pactl`
+- `Display`: safe read state plus brightness where supported; monitor layout and scaling still hand off to KDE
+- `Boot & Login`: privileged SDDM, Plymouth, quiet-boot, and splash-duration actions through the Kesk Settings helper
+
+## Privileged Settings
+
+The settings GUI itself does not run as root.
+
+Privileged actions now go through:
+
+```text
+/usr/lib/kesk/kesk-settings-helper
+```
+
+with the policy:
+
+```text
+/usr/share/polkit-1/actions/org.keskos.settings.policy
+```
+
+This helper is intentionally limited to:
+
+- setting the active SDDM theme
+- updating the KeskOS SDDM background when the theme supports it
+- setting the active Plymouth theme
+- toggling quiet boot
+- storing boot splash minimum duration
+- rebuilding initramfs on request
+
+These actions may require:
+
+- administrator authentication
+- initramfs rebuilds
+- reboot or logout to verify results
+
+## KeskOS Settings Storage
+
+KeskOS-specific GUI settings are stored in:
+
+```text
+~/.config/kesk/settings.json
+```
+
+GUI window state is stored in:
+
+```text
+~/.config/kesk/settings-gui.ini
+```
+
+KDE-native settings still live in their normal KDE files, for example:
+
+- `~/.config/kdeglobals`
+- `~/.config/kwinrc`
+- `~/.config/plasmarc`
+- `~/.config/kcminputrc`
+- `~/.config/kxkbrc`
+- `~/.config/mimeapps.list`
+- `~/.config/baloofilerc`
+- `~/.config/kioslaverc`
+
+## Backups
+
+Before important KDE/user config changes, Kesk Settings writes targeted backups to:
+
+```text
+~/.local/state/kesk/settings-backups/
+```
+
+Backups are grouped by settings area, for example:
+
+- `*-appearance`
+- `*-desktop`
+- `*-panels`
+- `*-windows`
+- `*-quick-settings`
+
+The Dunst notifications page also writes direct file backups before rewriting user config:
+
+- `dunstrc.YYYYMMDD-HHMMSS.bak`
+- `dunst.desktop.YYYYMMDD-HHMMSS.bak`
+
+System-level privileged helper actions also create targeted backups under:
+
+```text
+/var/lib/kesk/settings-backups/
+```
+
+## Logs
+
+GUI runs write logs to:
+
+```text
+~/.local/state/kesk/logs/gui-YYYYMMDD-HHMMSS.log
+```
+
+These logs include:
+
+- app start
+- selected pages
+- launched commands
+- apply results
+- warnings and errors
+
+No passwords or secrets are stored.
+
+## Notifications Backend
+
+KeskOS uses `dunst` as the runtime notification daemon.
+
+The Notifications page now targets Dunst first and keeps KDE notifications as an advanced handoff only.
+
+Primary config path:
+
+```text
+~/.config/dunst/dunstrc
+```
+
+System fallback path:
+
+```text
+/etc/dunst/dunstrc
+```
+
+Supported direct Dunst actions include:
+
+- enable or disable notification autostart
+- live Do Not Disturb through `dunstctl`
+- notification position, width, height, font, icons, transparency, border, and urgency colors
+- KeskOS branded Dunst preset apply
+- Dunst reload
+- test notifications through `notify-send`
+
+Useful commands:
+
+```bash
+dunstctl reload
+dunstctl set-paused true
+dunstctl set-paused false
+notify-send "KESKOS" "Test notification"
+notify-send -u critical "KESKOS WARNING" "Critical notification test."
+```
+
+If duplicate notifications appear, KeskOS is likely running Dunst alongside KDE/Plasma notification integration.
+In that case, keep Dunst as the main notifier and adjust the KDE notification stack from the advanced KDE handoff button if needed.
+
+## Tools Used
+
+The graphical settings app now relies on combinations of:
+
+- `kwriteconfig6`
+- `kreadconfig6`
+- `kcmshell6`
+- `qdbus6`
+- `kscreen-doctor`
+- `wpctl`
+- `pactl`
+- `dunst`
+- `dunstctl`
+- `notify-send`
+- `nmcli`
+- `xdg-mime`
+- `xdg-settings`
+- `balooctl6`
+- `bluetoothctl`
+- `pkexec`
+
+Missing optional tools do not crash the app.
+Instead the page reports `Limited` or `Missing tools`.
 
 ## Running It
 
-From a terminal:
+From a KDE/Wayland or X11 session:
 
 ```bash
 kesk settings
 ```
 
-Dry-run backend inspection:
-
-```bash
-kesk settings --dry-run
-```
-
-Direct GUI launcher:
+Direct GUI entry:
 
 ```bash
 kesk-settings
 ```
 
-If no graphical session is available, `kesk settings` prints:
+Dry-run backend check:
 
-```text
-Kesk Settings requires a graphical session.
+```bash
+kesk settings --dry-run
 ```
+
+`--dry-run` prints:
+
+- detected session type
+- whether a graphical session is present
+- detected KDE helper tools
+- detected Dunst helper tools
+- config paths
+- writable config/backups paths
+- privileged helper/polkit visibility
+- backend summaries and missing optional tools
+- Dunst runtime status and Do Not Disturb availability
 
 ## Start Menu Launcher
 
-KDE launcher entry:
+Desktop launcher:
 
 - `/usr/share/applications/kesk-settings.desktop`
 
@@ -105,99 +407,58 @@ It launches:
 kesk settings
 ```
 
-The hidden branded compatibility entry `keskos-settings.desktop` points to the same command for panel/menu integrations that still reference it.
+## Difference From The Command Tools
 
-## Config Storage
+- `kesk settings` changes desktop/system preferences
+- `kesk upgrade` handles updates
+- `kesk doctor` checks health
+- `kesk repair` restores and repairs the branded desktop stack
 
-KeskOS-specific settings are stored in:
+Kesk Settings is not supposed to replace those operational tools with a giant dashboard.
 
-```text
-~/.config/kesk/settings.json
-```
+## Debugging Missing Backends
 
-This file stores settings such as:
+If a page shows `Missing tools` or `Limited`:
 
-- accent color
-- CRT effects
-- scanlines
-- panel mode
-- launcher keybind
-- update preferences
-- boot/login preferences that are not yet root-applied directly
-- default browser preference
-- prompt style
-- experimental toggles
+1. Run `kesk settings --dry-run`
+2. Check the `TOOLS` section for the missing command
+3. Check the `BACKENDS` section for the page-specific summary
+4. Use the page's `Open Advanced ...` button when the direct backend is intentionally conservative
 
-GUI window state is stored separately in:
+Useful examples:
 
-```text
-~/.config/kesk/settings-gui.ini
-```
+- Bluetooth needs `bluetoothctl`
+- Dunst notifications need `dunst`, `dunstctl`, and optionally `notify-send`
+- VPN and Wi-Fi extras need `nmcli`
+- direct audio control needs `wpctl` or `pactl`
+- direct display brightness needs `brightnessctl`
+- boot/login system changes need `pkexec` plus the Kesk Settings helper
 
-KDE-native settings continue to live in their normal KDE config files such as:
+## Testing
 
-- `~/.config/kdeglobals`
-- `~/.config/kwinrc`
-- `~/.config/plasmarc`
-- `~/.config/kcminputrc`
-- `~/.config/kxkbrc`
-- `~/.config/mimeapps.list`
-
-## Backups
-
-Before important settings changes, Kesk Settings creates backups in:
-
-```text
-~/.local/state/kesk/settings-backups/
-```
-
-Backups are timestamped and grouped by settings area, for example:
-
-- `*-appearance`
-- `*-desktop`
-- `*-panels`
-- `*-windows`
-- `*-defaults`
-- `*-keskos`
-
-## Difference From Other Kesk Commands
-
-- `kesk settings` changes settings
-- `kesk upgrade` handles package, Flatpak, AUR, and firmware updates
-- `kesk repair` repairs the KeskOS desktop/theme stack
-- `kesk doctor` inspects system health
-
-Kesk Settings is meant to feel like the OS settings app. The operational and maintenance tools stay separate.
-
-## Dry-Run And Debugging
-
-Use:
+Useful tests:
 
 ```bash
 kesk settings --dry-run
+kesk settings
+kesk-settings
 ```
 
-This prints:
+In the GUI, test:
 
-- session type
-- Plasma version
-- Qt version
-- detected backend tools
-- config paths
-- writable config paths
-
-If a setting does not apply as expected:
-
-1. Run `kesk settings --dry-run`
-2. Confirm required tools such as `kwriteconfig6`, `lookandfeeltool`, `qdbus6`, `nmcli`, `wpctl`, or `powerprofilesctl`
-3. Check the latest GUI/session logs in `~/.local/state/kesk/logs/`
-4. Check the newest backup in `~/.local/state/kesk/settings-backups/`
+1. search in the sidebar
+2. page switching
+3. `Quick Settings`
+4. direct apply on pages like `Colors & Themes`, `Window Behavior`, `Input`, `Power`, `Updates`, `Accessibility`, `Advanced Networking`, `Sound`, `Privacy`, and `Boot & Login`
+5. `kesk settings --dry-run` for backend availability
+6. KDE module handoff buttons on limited pages
+7. `Notifications` for Dunst config writes, Do Not Disturb, reload, preset apply, and test notifications
 
 ## Known Limitations
 
-- Not every KDE setting is implemented directly yet.
-- Display arrangement, scaling, and refresh-rate changes still lean on KDE’s advanced display module.
-- System-level boot/login changes are intentionally conservative and currently stored as preferences unless a safe user-level apply path exists.
-- Network hostname changes require `pkexec` and `hostnamectl`.
-- Audio routing is intentionally minimal; the page focuses on safe default volume and mute.
-- The app does not run as root.
+- Not every sidebar page writes settings directly yet.
+- Task-switcher details are still intentionally conservative because KWin tabbox keys vary across setups.
+- The Notifications page assumes Dunst is the active runtime notifier. If Plasma integration also shows popups, you may need to adjust the advanced KDE notification stack separately.
+- `Automatic` theme mode in `Quick Settings` is kept conservative until a real scheduled-theme backend is added.
+- Boot/login changes now have a root-backed helper path, but they still require admin approval and may need a reboot or logout to verify.
+- If the usual XDG state/config paths are not writable, Kesk Settings falls back to a safe writable runtime path instead of crashing.

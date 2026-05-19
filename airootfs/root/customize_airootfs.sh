@@ -33,6 +33,10 @@ if [[ -f /usr/bin/kesk-settings ]]; then
   chmod 0755 /usr/bin/kesk-settings
 fi
 
+if [[ -f /usr/lib/kesk/kesk-settings-helper ]]; then
+  chmod 0755 /usr/lib/kesk/kesk-settings-helper
+fi
+
 if [[ -f /usr/lib/kesk/commands/upgrade ]]; then
   chmod 0755 /usr/lib/kesk/commands/upgrade
 fi
