@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Keep this entry script LF-only so it can be executed directly from WSL/Linux.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,6 +15,8 @@ BUILD_ARGS=()
 TMP_BIND_ACTIVE=0
 RESOLV_BIND_ACTIVE=0
 RESOLV_BIND_TARGET=""
+RESOLV_BIND_CREATED_TARGET=0
+RESOLV_BIND_CREATED_DIR=""
 
 log() {
   printf '[keskos-buildwsl] %s\n' "$1"
@@ -102,6 +105,21 @@ cleanup_resolv_bind() {
     fi
     RESOLV_BIND_ACTIVE=0
   fi
+
+  if (( RESOLV_BIND_CREATED_TARGET == 1 )) && [[ -n "$RESOLV_BIND_TARGET" ]]; then
+    log "Removing temporary resolver placeholder at ${RESOLV_BIND_TARGET}"
+    if ! sudo rm -f -- "$RESOLV_BIND_TARGET"; then
+      warn "Could not remove temporary resolver placeholder ${RESOLV_BIND_TARGET}"
+    fi
+    RESOLV_BIND_CREATED_TARGET=0
+  fi
+
+  if [[ -n "$RESOLV_BIND_CREATED_DIR" ]]; then
+    sudo rmdir --ignore-fail-on-non-empty "$RESOLV_BIND_CREATED_DIR" 2>/dev/null || true
+    RESOLV_BIND_CREATED_DIR=""
+  fi
+
+  RESOLV_BIND_TARGET=""
 }
 
 bind_workspace_tmp() {
@@ -110,10 +128,66 @@ bind_workspace_tmp() {
   TMP_BIND_ACTIVE=1
 }
 
+resolve_resolv_bind_target() {
+  local resolv_path="/etc/resolv.conf"
+  local resolved_target=""
+  local link_target=""
+  local parent_dir=""
+
+  if resolved_target="$(readlink -f "$resolv_path" 2>/dev/null)" && [[ -n "$resolved_target" ]]; then
+    printf '%s\n' "$resolved_target"
+    return 0
+  fi
+
+  if [[ -L "$resolv_path" ]]; then
+    link_target="$(readlink "$resolv_path" 2>/dev/null || true)"
+    if [[ -n "$link_target" ]]; then
+      if [[ "$link_target" == /* ]]; then
+        printf '%s\n' "$link_target"
+      else
+        parent_dir="$(cd "$(dirname "$resolv_path")" && pwd -P)"
+        printf '%s/%s\n' "$parent_dir" "$link_target"
+      fi
+      return 0
+    fi
+  fi
+
+  printf '%s\n' "$resolv_path"
+}
+
 bind_workspace_resolver() {
-  RESOLV_BIND_TARGET="$(readlink -f /etc/resolv.conf 2>/dev/null || printf '/etc/resolv.conf')"
+  local parent_dir=""
+
+  RESOLV_BIND_TARGET="$(resolve_resolv_bind_target)"
+
+  if [[ -d "$RESOLV_BIND_TARGET" ]]; then
+    fail "Resolver bind target is a directory, expected a file: ${RESOLV_BIND_TARGET}"
+  fi
+
+  if [[ "$RESOLV_BIND_TARGET" == /mnt/wsl/* ]]; then
+    warn "Resolver target ${RESOLV_BIND_TARGET} is WSL-managed. Skipping resolver bind mount and using the live WSL resolver file."
+    RESOLV_BIND_TARGET=""
+    return 0
+  fi
+
+  if [[ ! -e "$RESOLV_BIND_TARGET" ]]; then
+    parent_dir="$(dirname "$RESOLV_BIND_TARGET")"
+    if [[ ! -d "$parent_dir" ]]; then
+      log "Creating temporary resolver parent directory ${parent_dir} for the build..."
+      sudo mkdir -p "$parent_dir"
+      RESOLV_BIND_CREATED_DIR="$parent_dir"
+    fi
+    log "Creating temporary resolver placeholder at ${RESOLV_BIND_TARGET} for the build..."
+    sudo touch "$RESOLV_BIND_TARGET"
+    RESOLV_BIND_CREATED_TARGET=1
+  fi
+
   log "Bind-mounting ${WORKSPACE_RESOLV_CONF} over ${RESOLV_BIND_TARGET} for the build..."
-  sudo mount --bind "$WORKSPACE_RESOLV_CONF" "$RESOLV_BIND_TARGET"
+  if ! sudo mount --bind "$WORKSPACE_RESOLV_CONF" "$RESOLV_BIND_TARGET"; then
+    warn "Could not bind-mount the resolver snapshot onto ${RESOLV_BIND_TARGET}. Continuing with the existing resolver file."
+    cleanup_resolv_bind
+    return 0
+  fi
   RESOLV_BIND_ACTIVE=1
 }
 

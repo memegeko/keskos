@@ -29,10 +29,6 @@ if [[ -f /usr/bin/kesk ]]; then
   chmod 0755 /usr/bin/kesk
 fi
 
-if [[ -f /usr/bin/kesk-settings ]]; then
-  chmod 0755 /usr/bin/kesk-settings
-fi
-
 if [[ -f /usr/bin/kesk-apply-theme ]]; then
   chmod 0755 /usr/bin/kesk-apply-theme
 fi

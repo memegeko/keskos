@@ -4,17 +4,17 @@ import org.kde.kwin.decoration
 Decoration {
     id: root
 
-    property int sideBorder: 7
-    property int bottomBorder: 7
-    property int topInset: 6
-    property int titleHeight: 34
+    property int sideBorder: 6
+    property int bottomBorder: 6
+    property int topInset: 4
+    property int titleHeight: 36
 
     property color activeAccent: "#ce6a35"
-    property color inactiveAccent: "#845236"
-    property color activeBg: "#050403"
-    property color inactiveBg: "#040302"
-    property color activeTitleBg: "#0a0806"
-    property color inactiveTitleBg: "#070504"
+    property color inactiveAccent: "#6e4128"
+    property color activeBg: "#050505"
+    property color inactiveBg: "#040404"
+    property color activeTitleBg: "#070707"
+    property color inactiveTitleBg: "#050505"
     property color activeText: "#ce6a35"
     property color inactiveText: "#8f8a84"
 
@@ -53,32 +53,36 @@ Decoration {
         x: root.frameSide
         y: 1
         width: root.width - (root.frameSide * 2)
-        height: 2
+        height: 1
         color: root.accent
+        opacity: 0.7
     }
 
     Rectangle {
         x: root.frameSide
         y: root.titleHeight + root.topInset - 1
         width: root.width - (root.frameSide * 2)
-        height: 2
+        height: 1
         color: root.accent
+        opacity: 0.45
     }
 
     Rectangle {
-        x: root.frameSide + 8
-        y: 8
-        width: 18
+        x: root.frameSide + 10
+        y: 7
+        width: 12
         height: 1
         color: root.accent
+        opacity: 0.55
     }
 
     Rectangle {
-        x: root.width - root.frameSide - 26
-        y: 8
-        width: 18
+        x: root.width - root.frameSide - 22
+        y: 7
+        width: 12
         height: 1
         color: root.accent
+        opacity: 0.55
     }
 
     Rectangle {
@@ -106,43 +110,47 @@ Decoration {
     }
 
     Rectangle {
-        x: 6
-        y: 6
+        x: 5
+        y: 5
         width: 1
-        height: 14
+        height: 12
         color: root.accent
+        opacity: 0.6
     }
 
     Rectangle {
-        x: 6
-        y: 6
-        width: 14
+        x: 5
+        y: 5
+        width: 12
         height: 1
         color: root.accent
+        opacity: 0.6
     }
 
     Rectangle {
-        x: root.width - 20
-        y: root.height - 7
-        width: 14
+        x: root.width - 17
+        y: root.height - 6
+        width: 12
         height: 1
         color: root.accent
+        opacity: 0.6
     }
 
     Rectangle {
-        x: root.width - 7
-        y: root.height - 20
+        x: root.width - 6
+        y: root.height - 17
         width: 1
-        height: 14
+        height: 12
         color: root.accent
+        opacity: 0.6
     }
 
     Image {
         id: logoMark
-        x: root.frameSide + 6
+        x: root.frameSide + 7
         y: Math.round(((root.titleHeight + root.topInset) - height) / 2)
-        width: 20
-        height: 20
+        width: 18
+        height: 18
         fillMode: Image.PreserveAspectFit
         smooth: true
         mipmap: true
@@ -153,15 +161,15 @@ Decoration {
         id: buttonRow
         anchors {
             right: parent.right
-            rightMargin: root.frameSide + 8
+            rightMargin: root.frameSide + 7
             top: parent.top
-            topMargin: 7
+            topMargin: 8
         }
         width: childrenRect.width
-        height: 26
+        height: 24
 
         Row {
-            spacing: 6
+            spacing: 5
 
             KeskButton {
                 buttonType: DecorationOptions.DecorationButtonMinimize
@@ -179,9 +187,9 @@ Decoration {
 
     Item {
         id: titleArea
-        x: logoMark.x + logoMark.width + 6
+        x: logoMark.x + logoMark.width + 8
         y: 0
-        width: buttonRow.x - x - 10
+        width: buttonRow.x - x - 12
         height: root.titleHeight + root.topInset
 
         Component.onCompleted: {
@@ -196,7 +204,7 @@ Decoration {
             text: decoration.client.caption
             color: root.captionColor
             font.family: "JetBrainsMono Nerd Font"
-            font.pixelSize: 18
+            font.pixelSize: 16
             elide: Text.ElideRight
             width: parent.width
             renderType: Text.NativeRendering

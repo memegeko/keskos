@@ -13,7 +13,6 @@ from common import KeskConsole
 OFFICIAL_COLOR_SCHEME = "KeskOSDark"
 OFFICIAL_LAUNCHER = "kesk-settings.desktop"
 UPSTREAM_LAUNCHER_OVERRIDE = "systemsettings.desktop"
-EXPERIMENTAL_LAUNCHER = "keskos-settings.desktop"
 
 
 def has_graphical_session() -> bool:
@@ -61,10 +60,6 @@ def resolve_source_root(root: Path) -> Path | None:
     return None
 
 
-def resolve_experimental_gui(root: Path) -> Path:
-    return resolve_usr_root(root) / "bin" / "kesk-settings"
-
-
 def launch_program(command: Sequence[str]) -> int:
     if os.name == "nt":
         return subprocess.call(list(command))
@@ -90,13 +85,11 @@ def show_help(console: KeskConsole, error: str | None = None) -> int:
     console.line("kesk settings")
     console.line("kesk settings <kcm-module>")
     console.line("kesk settings --dry-run")
-    console.line("kesk settings --experimental")
     console.line()
     console.line("What it does:")
     console.line("- Opens the real KDE System Settings application (`systemsettings`)")
     console.line("- Keeps KDE KCM pages intact instead of replacing them with a custom dashboard")
     console.line("- Passes an optional KCM module name through to System Settings")
-    console.line("- Keeps the old custom Kesk Settings GUI hidden behind `--experimental`")
     console.line()
     console.line("Useful KDE commands:")
     console.line("- `kcmshell6 --list`")
@@ -128,14 +121,12 @@ def print_dry_run(console: KeskConsole, root: Path) -> int:
     legacy_color_paths = [color_dir / "KESKOS.colors"]
     official_launcher_paths = [launchers_dir / OFFICIAL_LAUNCHER]
     upstream_override_paths = [local_launchers_dir / UPSTREAM_LAUNCHER_OVERRIDE, launchers_dir / UPSTREAM_LAUNCHER_OVERRIDE]
-    experimental_launcher_paths = [launchers_dir / EXPERIMENTAL_LAUNCHER]
 
     if source_root is not None:
         official_color_paths.append(source_root / "configs" / "kde" / f"{OFFICIAL_COLOR_SCHEME}.colors")
         legacy_color_paths.append(source_root / "configs" / "kde" / "keskos.colors")
         official_launcher_paths.append(source_root / "desktop" / OFFICIAL_LAUNCHER)
         upstream_override_paths.append(source_root / "desktop" / UPSTREAM_LAUNCHER_OVERRIDE)
-        experimental_launcher_paths.append(source_root / "desktop" / EXPERIMENTAL_LAUNCHER)
 
     console.clear()
     console.header("KESK SETTINGS", "SYSTEM SETTINGS DRY RUN")
@@ -155,8 +146,6 @@ def print_dry_run(console: KeskConsole, root: Path) -> int:
         ("Legacy color alias", first_existing_path(legacy_color_paths)),
         ("Official launcher", first_existing_path(official_launcher_paths)),
         ("Upstream launcher override", first_existing_path(upstream_override_paths)),
-        ("Experimental launcher", first_existing_path(experimental_launcher_paths)),
-        ("Experimental GUI", resolve_experimental_gui(root)),
     ):
         console.status("ok" if path.exists() else "warn", f"{label}: {path}")
     console.line()
@@ -196,17 +185,6 @@ def launch_systemsettings(console: KeskConsole, args: Sequence[str]) -> int:
     return show_help(console, "systemsettings is missing from the current system.")
 
 
-def launch_experimental(console: KeskConsole, root: Path, args: Sequence[str]) -> int:
-    if not has_graphical_session():
-        return show_requires_graphics(console, "Experimental Kesk Settings")
-
-    gui_path = resolve_experimental_gui(root)
-    if not gui_path.exists():
-        return show_help(console, f"Experimental GUI not found: {gui_path}")
-
-    return launch_program([str(gui_path), *args])
-
-
 def main(args: Sequence[str], root: Path) -> int:
     console = KeskConsole()
     if args and args[0] in {"--help", "-h", "help"}:
@@ -214,5 +192,5 @@ def main(args: Sequence[str], root: Path) -> int:
     if args and args[0] == "--dry-run":
         return print_dry_run(console, root)
     if args and args[0] == "--experimental":
-        return launch_experimental(console, root, args[1:])
+        return show_help(console, "The legacy PySide settings app was archived and is no longer included in KeskOS builds.")
     return launch_systemsettings(console, args)

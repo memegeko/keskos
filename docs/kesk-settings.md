@@ -54,11 +54,11 @@ During image staging that override is installed under:
 
 - `/usr/local/share/applications/systemsettings.desktop`
 
-The old custom settings app is kept hidden as experimental:
+The old custom PySide settings app is archived in:
 
-- `desktop/keskos-settings.desktop`
-- `Exec=kesk settings --experimental`
-- `NoDisplay=true`
+- `.old_experiments/kesk-settings-pyside/`
+
+It is not part of the active launcher path and it is not included in the ISO.
 
 ## Command Behavior
 
@@ -88,13 +88,7 @@ kcmshell6 kcm_access
 
 Exact module names vary by distro package set. If one of the example modules is missing, check `kcmshell6 --list` and use the matching module name available on that system.
 
-The old custom GUI is still available only as an experimental fallback:
-
-```bash
-kesk settings --experimental
-```
-
-It is not the default launcher and it is not the official settings app anymore.
+The old custom GUI is archived for reference only and is no longer shipped in current KeskOS builds.
 
 ## KCM Architecture
 
@@ -191,7 +185,7 @@ But KeskOS still cannot fully redesign the System Settings layout without:
 
 That deeper UI restructuring is intentionally out of scope for this phase.
 
-The old custom settings app remains hidden and experimental.
+The old custom settings app has been moved out of the active tree and archived under `.old_experiments/kesk-settings-pyside/`.
 
 ## Theme Apply Path
 

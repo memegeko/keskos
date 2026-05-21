@@ -11,6 +11,7 @@ COLOR_SCHEME_NAME="KeskOSDark"
 LOOK_AND_FEEL_NAME="com.keskos.desktop"
 PLASMA_THEME_NAME="keskos-shell"
 WINDOW_DECORATION_NAME="kwin4_decoration_qml_keskos_split"
+WINDOW_DECORATION_AURORAE_NAME="KeskOS-SPLIT"
 KVANTUM_THEME_NAME="KeskOS"
 ACCENT_COLOR="#ce6a35"
 
@@ -106,7 +107,9 @@ ensure_dirs() {
   mkdir -p \
     "$TARGET_HOME/.config" \
     "$TARGET_HOME/.config/Kvantum" \
+    "$TARGET_HOME/.local/share/aurorae/themes" \
     "$TARGET_HOME/.local/share/color-schemes" \
+    "$TARGET_HOME/.local/share/kwin/decorations" \
     "$TARGET_HOME/.local/share/plasma/desktoptheme" \
     "$TARGET_HOME/.local/share/plasma/look-and-feel" \
     "$TARGET_HOME/.local/state/kesk/logs"
@@ -325,6 +328,16 @@ stage_local_assets_from_source() {
     "$TARGET_HOME/.local/share/plasma/look-and-feel/${LOOK_AND_FEEL_NAME}"
 
   sync_dir_if_missing_system_asset \
+    "/usr/share/aurorae/themes/${WINDOW_DECORATION_AURORAE_NAME}" \
+    "$SOURCE_ROOT/configs/aurorae/themes/${WINDOW_DECORATION_AURORAE_NAME}" \
+    "$TARGET_HOME/.local/share/aurorae/themes/${WINDOW_DECORATION_AURORAE_NAME}"
+
+  sync_dir_if_missing_system_asset \
+    "/usr/share/kwin/decorations/${WINDOW_DECORATION_NAME}" \
+    "$SOURCE_ROOT/configs/kwin/decorations/${WINDOW_DECORATION_NAME}" \
+    "$TARGET_HOME/.local/share/kwin/decorations/${WINDOW_DECORATION_NAME}"
+
+  sync_dir_if_missing_system_asset \
     "/usr/share/Kvantum/${KVANTUM_THEME_NAME}" \
     "$SOURCE_ROOT/configs/Kvantum/${KVANTUM_THEME_NAME}" \
     "$TARGET_HOME/.config/Kvantum/${KVANTUM_THEME_NAME}"
@@ -445,7 +458,9 @@ apply_theme_stack() {
   fi
 
   chown_path "$TARGET_HOME/.config"
+  chown_path "$TARGET_HOME/.local/share/aurorae"
   chown_path "$TARGET_HOME/.local/share/color-schemes"
+  chown_path "$TARGET_HOME/.local/share/kwin"
   chown_path "$TARGET_HOME/.local/share/plasma"
   chown_path "$TARGET_HOME/.local/state/kesk"
 

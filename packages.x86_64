@@ -46,6 +46,7 @@ pipewire-pulse
 plasma-desktop
 plasma-nm
 plasma-pa
+plasma-activities
 plasma-workspace
 polkit-kde-agent
 procps-ng

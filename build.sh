@@ -13,10 +13,12 @@ GENERATED_MIRRORLIST="${WORK_ROOT}/mirrorlist"
 PACMAN_SYNC_DB_PATH="${WORK_ROOT}/pacman-sync-db"
 PACMAN_SYNC_CACHE_DIR="${WORK_ROOT}/pacman-sync-cache"
 AUR_BUILD_ROOT="${SAFE_BUILD_ROOT}/aur"
+REPO_BUILD_ROOT="${SAFE_BUILD_ROOT}/repo-packages"
 AUR_PKGDEST="${SAFE_BUILD_ROOT}/pkgdest"
 GNUPG_BUILD_HOME="${SAFE_BUILD_ROOT}/gnupg"
 SOURCE_DATE="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 ISO_VERSION="${KESKOS_ISO_VERSION:-$(date --date="@${SOURCE_DATE}" +%Y.%m.%d)}"
+REPO_PACKAGES=(systemsettings)
 AUR_PACKAGES=(calamares librewolf-bin zen-browser-bin brave-bin)
 SKIP_PGP_FALLBACK_PACKAGES=(librewolf-bin zen-browser-bin brave-bin)
 
@@ -133,7 +135,7 @@ prepare_workdirs() {
   cleanup_safe_build_root
   mkdir -p "$STAGE_DIR" "$ARCHISO_WORK_DIR"
   mkdir -p "$LOCAL_REPO_DIR"
-  mkdir -p "$AUR_BUILD_ROOT" "$AUR_PKGDEST"
+  mkdir -p "$AUR_BUILD_ROOT" "$REPO_BUILD_ROOT" "$AUR_PKGDEST"
   mkdir -p "$PACMAN_SYNC_DB_PATH" "$PACMAN_SYNC_CACHE_DIR"
   mkdir -p "$GNUPG_BUILD_HOME"
   chmod 700 "$GNUPG_BUILD_HOME"
@@ -262,6 +264,81 @@ for pattern, replacement in patterns.items():
 
 path.write_text(text, encoding="utf-8")
 PY
+}
+
+patch_systemsettings_pkgbuild() {
+  local package_dir="$1"
+
+  log "Patching Arch systemsettings packaging to apply KeskOS sidebar QML overrides..."
+
+  mkdir -p "${package_dir}/keskos_systemsettings_qml"
+  install -m 755 "${REPO_ROOT}/patches/systemsettings/keskos_systemsettings_ui.py" \
+    "${package_dir}/keskos_systemsettings_ui.py"
+  install -m 644 "${REPO_ROOT}/patches/systemsettings/keskos_systemsettings_qml/CategoriesPage.qml" \
+    "${package_dir}/keskos_systemsettings_qml/CategoriesPage.qml"
+  install -m 644 "${REPO_ROOT}/patches/systemsettings/keskos_systemsettings_qml/CategoryItem.qml" \
+    "${package_dir}/keskos_systemsettings_qml/CategoryItem.qml"
+  install -m 644 "${REPO_ROOT}/patches/systemsettings/keskos_systemsettings_qml/HamburgerMenuButton.qml" \
+    "${package_dir}/keskos_systemsettings_qml/HamburgerMenuButton.qml"
+  install -m 644 "${REPO_ROOT}/patches/systemsettings/keskos_systemsettings_qml/SubCategoryPage.qml" \
+    "${package_dir}/keskos_systemsettings_qml/SubCategoryPage.qml"
+
+  python3 - "$package_dir/PKGBUILD" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+prepare_snippet = """prepare() {\n  python3 \"$startdir/keskos_systemsettings_ui.py\" \"$srcdir/$pkgname-$pkgver\"\n}\n\n"""
+
+if prepare_snippet in text:
+    path.write_text(text, encoding="utf-8")
+    raise SystemExit(0)
+
+if re.search(r"^prepare\(\)\s*\{", text, flags=re.MULTILINE):
+    raise SystemExit("systemsettings PKGBUILD already defines prepare(); update patch_systemsettings_pkgbuild before continuing.")
+
+text, count = re.subn(r"^pkgrel=(.+)$", lambda match: f"pkgrel={match.group(1)}.1", text, count=1, flags=re.MULTILINE)
+if count != 1:
+    raise SystemExit("Failed to bump systemsettings pkgrel in PKGBUILD.")
+
+marker = "build() {\n"
+if marker not in text:
+    raise SystemExit("Failed to locate build() in systemsettings PKGBUILD.")
+text = text.replace(marker, prepare_snippet + marker, 1)
+
+path.write_text(text, encoding="utf-8")
+PY
+}
+
+build_repo_package() {
+  local package_name="$1"
+  local package_dir="${REPO_BUILD_ROOT}/${package_name}"
+  local package_repo_url="https://gitlab.archlinux.org/archlinux/packaging/packages/${package_name}.git"
+
+  if [[ ! -d "$package_dir/.git" ]]; then
+    log "Cloning Arch package ${package_name}..."
+    git clone --depth 1 "$package_repo_url" "$package_dir"
+  else
+    log "Refreshing Arch package ${package_name}..."
+    git -C "$package_dir" fetch origin
+    git -C "$package_dir" reset --hard origin/main
+  fi
+
+  if [[ "$package_name" == "systemsettings" ]]; then
+    patch_systemsettings_pkgbuild "$package_dir"
+  fi
+
+  log "Building ${package_name} for the local ISO repository..."
+  (
+    cd "$package_dir"
+    import_pkgbuild_keys "$package_name" "$package_dir"
+    GNUPGHOME="$GNUPG_BUILD_HOME" PKGDEST="${AUR_PKGDEST}" \
+      makepkg --syncdeps --needed --noconfirm --cleanbuild --clean
+  )
+
+  find "$AUR_PKGDEST" -maxdepth 1 -type f -name "${package_name}-*.pkg.tar.*" -exec cp -f {} "$LOCAL_REPO_DIR/" \;
 }
 
 build_aur_package() {
@@ -539,6 +616,10 @@ main() {
 
   prepare_workdirs
   trap restore_build_root_ownership EXIT
+
+  for package_name in "${REPO_PACKAGES[@]}"; do
+    build_repo_package "$package_name"
+  done
 
   for package_name in "${AUR_PACKAGES[@]}"; do
     build_aur_package "$package_name"

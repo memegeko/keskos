@@ -1,0 +1,6 @@
+*.sh text eol=lf
+*.bash text eol=lf
+*.qml text eol=lf
+*.svg text eol=lf
+*.colors text eol=lf
+*.kvconfig text eol=lf

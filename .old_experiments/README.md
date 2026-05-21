@@ -6,6 +6,8 @@ Current archived items:
 
 - `calamares-loadout/`
   - the abandoned `notesqml` software-loadout experiment
+- `kesk-settings-pyside/`
+  - the retired custom PySide settings app and hidden experimental launcher
 - `launcher-icons/`
   - retired placeholder launcher icon experiments
 
